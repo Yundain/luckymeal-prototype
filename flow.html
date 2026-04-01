@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>럭키밀 — 플로우 맵</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Pretendard', sans-serif; background: #f5f5f5; height: 100vh; overflow: hidden; }
+
+    .top-bar {
+      height: 48px; background: white; border-bottom: 1px solid #e3e3df;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    }
+    .top-bar h1 { font-size: 15px; font-weight: 700; color: #1c1c1b; }
+    .top-bar a {
+      font-size: 13px; color: #16cc83; text-decoration: none; font-weight: 600;
+    }
+    .top-bar a:hover { text-decoration: underline; }
+
+    .canvas-wrap {
+      width: 100%; height: calc(100vh - 48px); overflow: hidden; position: relative; cursor: grab;
+    }
+    .canvas-wrap.grabbing { cursor: grabbing; }
+    .canvas {
+      position: absolute; top: 0; left: 0; width: 2700px; height: 600px;
+      transform-origin: 0 0; will-change: transform;
+    }
+
+    .zoom-controls {
+      position: fixed; bottom: 20px; right: 16px; display: flex; align-items: center; gap: 2px;
+      background: white; border: 1px solid #e3e3df; border-radius: 10px; padding: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 10;
+    }
+    .zoom-btn {
+      width: 32px; height: 32px; border: none; background: none; cursor: pointer;
+      border-radius: 8px; font-size: 16px; color: #6d6d6b; display: flex; align-items: center; justify-content: center;
+    }
+    .zoom-btn:hover { background: #f5f5f5; color: #1c1c1b; }
+    .zoom-level {
+      font-size: 11px; font-weight: 600; color: #6d6d6b; min-width: 44px; text-align: center;
+      cursor: pointer; padding: 4px 2px; border-radius: 6px;
+    }
+    .zoom-level:hover { background: #f5f5f5; }
+    .zoom-divider { width: 1px; height: 20px; background: #e3e3df; }
+
+    svg.edges { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    .node {
+      position: absolute; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      text-align: center; font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+      user-select: none; z-index: 2;
+    }
+    .node:hover { transform: translateY(-1px); }
+
+    .node-main {
+      width: 140px; height: 50px; background: white; border: 1.5px solid #ddd;
+      color: #1c1c1b; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .node-main:hover { border-color: #16cc83; box-shadow: 0 2px 12px rgba(22,204,131,0.2); }
+
+    .node-sheet {
+      width: 120px; height: 42px; background: white; border: 1.5px dashed #c6c6c4;
+      color: #6d6d6b; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .node-sheet:hover { border-color: #16cc83; box-shadow: 0 2px 10px rgba(22,204,131,0.15); }
+
+    .node-grey {
+      width: 120px; height: 42px; background: #f0f0f0; border: 1.5px solid #ddd;
+      color: #ababab; font-size: 11px; cursor: default;
+    }
+
+    .node-end {
+      width: 140px; height: 50px; background: #e4f8ed; border: 1.5px solid #16cc83;
+      color: #0ab26f; box-shadow: 0 1px 4px rgba(22,204,131,0.1);
+    }
+
+    .node-label { line-height: 1.3; }
+    .case-badge {
+      position: absolute; top: -8px; right: -8px; min-width: 32px; height: 18px;
+      border-radius: 9px; font-size: 10px; font-weight: 700; display: flex;
+      align-items: center; justify-content: center; padding: 0 5px;
+    }
+    .case-badge.complete { background: #e4f8ed; color: #0ab26f; }
+    .case-badge.partial { background: #fef3c7; color: #92400e; }
+
+    .edge-label {
+      position: absolute; font-size: 10px; color: #90908e; white-space: nowrap;
+      pointer-events: none; z-index: 1; font-style: italic;
+    }
+
+    /* 범례 */
+    .legend {
+      position: fixed; top: 60px; right: 16px; background: white; border: 1px solid #e3e3df;
+      border-radius: 12px; padding: 12px 16px; font-size: 11px; color: #6d6d6b;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06); z-index: 10;
+    }
+    .legend-title { font-weight: 700; color: #1c1c1b; margin-bottom: 8px; font-size: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+    .legend-icon { width: 28px; height: 18px; border-radius: 5px; flex-shrink: 0; }
+    .legend-icon.main { background: white; border: 1.5px solid #ddd; }
+    .legend-icon.sheet { background: white; border: 1.5px dashed #c6c6c4; }
+    .legend-icon.end { background: #e4f8ed; border: 1.5px solid #16cc83; }
+    .legend-line { width: 28px; height: 2px; flex-shrink: 0; }
+    .legend-line.solid { background: #999; }
+    .legend-line.dashed { background: repeating-linear-gradient(to right, #999 0, #999 4px, transparent 4px, transparent 8px); }
+    .legend-badge { min-width: 28px; height: 16px; border-radius: 8px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; background: #fef3c7; color: #92400e; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <h1>입점 등록 플로우 맵</h1>
+    <a href="annotate.html">← 어노테이션 보기</a>
+  </div>
+  <div class="canvas-wrap" id="wrap">
+    <div class="canvas" id="canvas">
+      <svg class="edges" id="svg"></svg>
+    </div>
+  </div>
+
+  <div class="zoom-controls">
+    <button class="zoom-btn" id="zoomOut" title="축소">−</button>
+    <div class="zoom-divider"></div>
+    <span class="zoom-level" id="zoomLevel" title="100%로 리셋">100%</span>
+    <div class="zoom-divider"></div>
+    <button class="zoom-btn" id="zoomIn" title="확대">+</button>
+    <div class="zoom-divider"></div>
+    <button class="zoom-btn" id="zoomFit" title="전체 보기" style="font-size:13px;">⊞</button>
+  </div>
+
+  <div class="legend">
+    <div class="legend-title">범례</div>
+    <div class="legend-item"><div class="legend-icon main"></div> 메인 화면</div>
+    <div class="legend-item"><div class="legend-icon sheet"></div> 바텀시트</div>
+    <div class="legend-item"><div class="legend-icon end"></div> 완료</div>
+    <div class="legend-item"><div class="legend-line solid"></div> 메인 전환</div>
+    <div class="legend-item"><div class="legend-line dashed"></div> 바텀시트</div>
+    <div class="legend-item"><div class="legend-badge">2/4</div> TODO 케이스 있음</div>
+  </div>
+
+  <script>
+    // ── 화면 데이터 (annotate.html S 배열에서 추출) ──
+    const CASES = {
+      'role-select': { done:1, total:3 },
+      'owner-preview': { done:1, total:3 },  // "약관 동의 바텀시트" 제외 (②-a 노드로 표현)
+      'agreement-sheet': { done:2, total:2 },
+      'email': { done:4, total:5 },
+      'password': { done:5, total:6 },
+      'phone': { done:6, total:8 },
+      'store-search': { done:3, total:4 },
+      'store-detail-input': { done:3, total:3 },
+      'store-landing': { done:2, total:3 },
+      'menu-select': { done:5, total:6 },
+      'menu-days-sheet': { done:3, total:3 },
+      'price-quantity': { done:0, total:1 },  // 정가/수량 케이스는 ⑦-a/b로, 수수료는 ⑦-c로 이동
+      'price-stepper-price': { done:3, total:3 },
+      'price-stepper-qty': { done:3, total:3 },
+      'price-revenue-detail': { done:1, total:1 },
+      'pickup-time': { done:5, total:6 },
+      'pickup-time-picker-sheet': { done:1, total:1 },  // "기본" 케이스는 ⑧과 중복 → 제거
+      'store-info': { done:6, total:8 },  // 화면 전체 2 + 사진 area 3 + 가게속성 area 3
+    };
+
+    const NODES = [
+      { id:'role-select', label:'① 역할 선택', x:80, y:240, type:'main' },
+      { id:'consumer-home', label:'소비자 홈\n(그레이아웃)', x:60, y:90, type:'grey' },
+      { id:'owner-preview', label:'② 시작하기', x:300, y:240, type:'main' },
+      { id:'agreement-sheet', label:'②-a 약관 동의', x:280, y:400, type:'sheet' },
+      { id:'email', label:'③-1 이메일', x:520, y:240, type:'main' },
+      { id:'password', label:'③-2 비밀번호', x:720, y:240, type:'main' },
+      { id:'phone', label:'③-3 전화번호', x:920, y:240, type:'main' },
+      { id:'store-search', label:'④-1 가게 검색', x:1120, y:240, type:'main' },
+      { id:'store-detail-input', label:'④-2 가게명 확인', x:1320, y:240, type:'main' },
+      { id:'address-search-sheet', label:'④-2a 주소 검색', x:1310, y:400, type:'sheet' },
+      { id:'store-landing', label:'⑤ 럭키백 소개', x:1520, y:240, type:'main' },
+      { id:'menu-select', label:'⑥ 메뉴 선택', x:1720, y:240, type:'main' },
+      { id:'menu-days-sheet', label:'⑥-a 요일 선택', x:1710, y:400, type:'sheet' },
+      { id:'price-quantity', label:'⑦ 판매 설정', x:1920, y:240, type:'main' },
+      { id:'price-stepper-price', label:'⑦-a 정가', x:1830, y:400, type:'sheet' },
+      { id:'price-stepper-qty', label:'⑦-b 수량', x:1960, y:400, type:'sheet' },
+      { id:'price-revenue-detail', label:'⑦-c 수수료', x:2090, y:400, type:'sheet' },
+      { id:'pickup-time', label:'⑧ 픽업 시간', x:2160, y:240, type:'main' },
+      { id:'pickup-time-picker-sheet', label:'⑧-a 시간 선택', x:2160, y:400, type:'sheet' },
+      { id:'store-info', label:'⑨ 가게 정보', x:2400, y:240, type:'main' },
+      { id:'info-referral-sheet', label:'⑨-a 추천인 검색', x:2390, y:400, type:'sheet' },
+      { id:'registration-complete', label:'⑩ 등록 완료', x:2640, y:240, type:'end' },
+    ];
+
+    const EDGES = [
+      { from:'role-select', to:'consumer-home', label:'"고객이에요"', type:'solid' },
+      { from:'role-select', to:'owner-preview', label:'"사장이에요"', type:'solid' },
+      { from:'owner-preview', to:'agreement-sheet', label:'"시작하기" 탭', type:'dashed' },
+      { from:'agreement-sheet', to:'email', label:'동의 완료', type:'solid' },
+      { from:'email', to:'password', label:'"다음"', type:'solid' },
+      { from:'password', to:'phone', label:'"다음"', type:'solid' },
+      { from:'phone', to:'store-search', label:'인증 완료', type:'solid' },
+      { from:'store-search', to:'store-detail-input', label:'가게 탭 / "직접 입력"', type:'solid' },
+      { from:'store-detail-input', to:'address-search-sheet', label:'주소 필드 탭', type:'dashed' },
+      { from:'store-detail-input', to:'store-landing', label:'"다음"', type:'solid' },
+      { from:'store-landing', to:'menu-select', label:'"다음"', type:'solid' },
+      { from:'menu-select', to:'price-quantity', label:'"다음"', type:'solid' },
+      { from:'price-quantity', to:'menu-days-sheet', label:'"주 N일" 탭', type:'dashed' },
+      { from:'price-quantity', to:'price-stepper-price', label:'', type:'dashed' },
+      { from:'price-quantity', to:'price-stepper-qty', label:'', type:'dashed' },
+      { from:'price-quantity', to:'price-revenue-detail', label:'', type:'dashed' },
+      { from:'price-quantity', to:'pickup-time', label:'"다음"', type:'solid' },
+      { from:'pickup-time', to:'pickup-time-picker-sheet', label:'', type:'dashed' },
+      { from:'pickup-time', to:'store-info', label:'"다음"', type:'solid' },
+      { from:'store-info', to:'info-referral-sheet', label:'추천인 필드 탭', type:'dashed' },
+      { from:'store-info', to:'registration-complete', label:'"등록하기"', type:'solid' },
+    ];
+
+    // annotate.html 화면 ID 매핑 (flow node id → annotate S index)
+    const ANNOTATE_IDS = [
+      'role-select','owner-preview','agreement-sheet','email','password','phone',
+      'store-search','store-detail-input','store-landing',
+      'menu-select','menu-days-sheet','price-quantity','price-stepper-price',
+      'price-stepper-qty','price-revenue-detail','pickup-time','pickup-time-picker-sheet','store-info',
+      'registration-complete','exit-confirm'
+    ];
+
+    const canvas = document.getElementById('canvas');
+    const svg = document.getElementById('svg');
+    const nodeMap = {};
+
+    // ── 노드 렌더링 ──
+    NODES.forEach(n => {
+      nodeMap[n.id] = n;
+      const isSheet = n.type === 'sheet';
+      const isGrey = n.type === 'grey';
+      const isEnd = n.type === 'end';
+      const w = (isSheet || isGrey) ? 120 : 140;
+      const h = (isSheet || isGrey) ? 42 : 50;
+      n.w = w; n.h = h;
+
+      const el = document.createElement('div');
+      el.className = `node node-${n.type}`;
+      el.style.left = n.x + 'px';
+      el.style.top = n.y + 'px';
+      el.style.width = w + 'px';
+      el.style.height = h + 'px';
+      el.dataset.id = n.id;
+
+      const labelEl = document.createElement('div');
+      labelEl.className = 'node-label';
+      labelEl.textContent = n.label;
+      el.appendChild(labelEl);
+
+      // 케이스 뱃지
+      const c = CASES[n.id];
+      if (c) {
+        const badge = document.createElement('div');
+        badge.className = 'case-badge ' + (c.done === c.total ? 'complete' : 'partial');
+        badge.textContent = c.done + '/' + c.total;
+        el.appendChild(badge);
+      }
+
+      // 클릭 → annotate.html
+      if (!isGrey) {
+        el.addEventListener('click', () => {
+          const idx = ANNOTATE_IDS.indexOf(n.id);
+          if (idx >= 0) {
+            window.open('annotate.html?screen=' + idx, '_blank');
+          }
+        });
+      }
+
+      // hover → 연결 엣지 하이라이트
+      el.addEventListener('mouseenter', () => highlightEdges(n.id, true));
+      el.addEventListener('mouseleave', () => highlightEdges(n.id, false));
+
+      canvas.appendChild(el);
+    });
+
+    // ── 엣지 렌더링 ──
+    function getNodeCenter(n) {
+      return { x: n.x + n.w / 2, y: n.y + n.h / 2 };
+    }
+
+    function getConnectionPoints(fromN, toN, offsetY) {
+      const fc = getNodeCenter(fromN);
+      const tc = getNodeCenter(toN);
+      const dx = tc.x - fc.x;
+      const dy = tc.y - fc.y;
+      const oy = offsetY || 0;
+
+      let sx, sy, ex, ey;
+
+      if (Math.abs(dx) > Math.abs(dy) * 0.8) {
+        // Mostly horizontal
+        if (dx > 0) {
+          sx = fromN.x + fromN.w; sy = fc.y + oy;
+          ex = toN.x; ey = tc.y + oy;
+        } else {
+          sx = fromN.x; sy = fc.y + oy;
+          ex = toN.x + toN.w; ey = tc.y + oy;
+        }
+      } else {
+        // Mostly vertical
+        if (dy > 0) {
+          sx = fc.x; sy = fromN.y + fromN.h;
+          ex = tc.x; ey = toN.y;
+        } else {
+          sx = fc.x; sy = fromN.y;
+          ex = tc.x; ey = toN.y + toN.h;
+        }
+      }
+
+      return { sx, sy, ex, ey };
+    }
+
+    // SVG namespace
+    const NS = 'http://www.w3.org/2000/svg';
+
+    // Arrow markers
+    const defs = document.createElementNS(NS, 'defs');
+
+    function addMarker(id, color) {
+      const m = document.createElementNS(NS, 'marker');
+      m.setAttribute('id', id);
+      m.setAttribute('viewBox', '0 0 10 7');
+      m.setAttribute('refX', '9');
+      m.setAttribute('refY', '3.5');
+      m.setAttribute('markerWidth', '8');
+      m.setAttribute('markerHeight', '6');
+      m.setAttribute('orient', 'auto');
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', 'M0,0 L10,3.5 L0,7 Z');
+      p.setAttribute('fill', color);
+      m.appendChild(p);
+      defs.appendChild(m);
+    }
+
+    addMarker('arrow', '#b0b0b0');
+    addMarker('arrow-hl', '#16cc83');
+    svg.appendChild(defs);
+
+    EDGES.forEach((e, i) => {
+      const fromN = nodeMap[e.from];
+      const toN = nodeMap[e.to];
+      if (!fromN || !toN) return;
+
+      const { sx, sy, ex, ey } = getConnectionPoints(fromN, toN, e.offsetY);
+
+      const g = document.createElementNS(NS, 'g');
+      g.dataset.from = e.from;
+      g.dataset.to = e.to;
+      g.classList.add('edge-group');
+
+      const path = document.createElementNS(NS, 'path');
+      // Compute bezier control points
+      const dx = ex - sx;
+      const dy = ey - sy;
+      let d;
+      if (Math.abs(dy) < 10) {
+        // Straight horizontal
+        d = `M${sx},${sy} L${ex},${ey}`;
+      } else if (Math.abs(dx) < 10) {
+        // Straight vertical
+        d = `M${sx},${sy} L${ex},${ey}`;
+      } else {
+        // Curved
+        const cx1 = sx + dx * 0.4;
+        const cy1 = sy;
+        const cx2 = ex - dx * 0.4;
+        const cy2 = ey;
+        d = `M${sx},${sy} C${cx1},${cy1} ${cx2},${cy2} ${ex},${ey}`;
+      }
+
+      path.setAttribute('d', d);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#c6c6c4');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('marker-end', 'url(#arrow)');
+
+      if (e.type === 'dashed') {
+        path.setAttribute('stroke-dasharray', '5,3');
+      }
+
+      g.appendChild(path);
+      svg.appendChild(g);
+
+      // Edge label
+      if (e.label) {
+        const labelEl = document.createElement('div');
+        labelEl.className = 'edge-label';
+        const mx = (sx + ex) / 2;
+        const my = (sy + ey) / 2;
+        labelEl.style.left = mx + 'px';
+        labelEl.style.top = (my - 14) + 'px';
+        labelEl.textContent = e.label;
+        labelEl.dataset.edgeFrom = e.from;
+        labelEl.dataset.edgeTo = e.to;
+        canvas.appendChild(labelEl);
+      }
+    });
+
+    // ── 엣지 하이라이트 ──
+    function highlightEdges(nodeId, on) {
+      svg.querySelectorAll('.edge-group').forEach(g => {
+        const connected = g.dataset.from === nodeId || g.dataset.to === nodeId;
+        const path = g.querySelector('path');
+        if (connected && on) {
+          path.setAttribute('stroke', '#16cc83');
+          path.setAttribute('stroke-width', '2.5');
+          path.setAttribute('marker-end', 'url(#arrow-hl)');
+        } else {
+          path.setAttribute('stroke', '#c6c6c4');
+          path.setAttribute('stroke-width', '1.5');
+          path.setAttribute('marker-end', 'url(#arrow)');
+        }
+      });
+      // Highlight edge labels too
+      canvas.querySelectorAll('.edge-label').forEach(el => {
+        const connected = el.dataset.edgeFrom === nodeId || el.dataset.edgeTo === nodeId;
+        el.style.color = (connected && on) ? '#16cc83' : '#90908e';
+        el.style.fontWeight = (connected && on) ? '600' : '400';
+      });
+    }
+
+    // ── Figma-style 캔버스: 줌 + 팬 ──
+    const wrap = document.getElementById('wrap');
+    const zoomLevelEl = document.getElementById('zoomLevel');
+
+    let scale = 1;
+    let panX = 0, panY = 0;
+    const MIN_SCALE = 0.15;
+    const MAX_SCALE = 3;
+
+    function applyTransform() {
+      canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      zoomLevelEl.textContent = Math.round(scale * 100) + '%';
+    }
+
+    // 마우스 휠 / 트랙패드 핀치 줌
+    wrap.addEventListener('wheel', e => {
+      e.preventDefault();
+
+      // pinch zoom (ctrlKey) 또는 Cmd+scroll
+      if (e.ctrlKey || e.metaKey) {
+        const rect = wrap.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const prevScale = scale;
+        const delta = -e.deltaY * 0.008;
+        scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * (1 + delta)));
+
+        // 마우스 포인터 기준 줌
+        panX = mx - (mx - panX) * (scale / prevScale);
+        panY = my - (my - panY) * (scale / prevScale);
+      } else {
+        // 일반 스크롤 → 팬
+        panX -= e.deltaX;
+        panY -= e.deltaY;
+      }
+
+      applyTransform();
+    }, { passive: false });
+
+    // 드래그 팬 (Space 또는 빈 영역)
+    let isDrag = false, dragStartX, dragStartY, panStartX, panStartY;
+    let spaceHeld = false;
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && !e.repeat) {
+        spaceHeld = true;
+        wrap.style.cursor = 'grab';
+        e.preventDefault();
+      }
+    });
+    document.addEventListener('keyup', e => {
+      if (e.code === 'Space') {
+        spaceHeld = false;
+        if (!isDrag) wrap.style.cursor = 'grab';
+      }
+    });
+
+    wrap.addEventListener('mousedown', e => {
+      // Space 누른 상태 또는 빈 영역 클릭
+      if (!spaceHeld && e.target.closest('.node')) return;
+      isDrag = true;
+      wrap.classList.add('grabbing');
+      wrap.style.cursor = 'grabbing';
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      panStartX = panX;
+      panStartY = panY;
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!isDrag) return;
+      panX = panStartX + (e.clientX - dragStartX);
+      panY = panStartY + (e.clientY - dragStartY);
+      applyTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDrag) return;
+      isDrag = false;
+      wrap.classList.remove('grabbing');
+      wrap.style.cursor = spaceHeld ? 'grab' : 'grab';
+    });
+
+    // 줌 버튼
+    function zoomTo(newScale, centerX, centerY) {
+      const rect = wrap.getBoundingClientRect();
+      const cx = centerX ?? rect.width / 2;
+      const cy = centerY ?? rect.height / 2;
+      const prevScale = scale;
+      scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
+      panX = cx - (cx - panX) * (scale / prevScale);
+      panY = cy - (cy - panY) * (scale / prevScale);
+      applyTransform();
+    }
+
+    document.getElementById('zoomIn').addEventListener('click', () => zoomTo(scale * 1.25));
+    document.getElementById('zoomOut').addEventListener('click', () => zoomTo(scale / 1.25));
+    zoomLevelEl.addEventListener('click', () => { fitToView(); });
+
+    // 전체 보기 (Fit to view)
+    function fitToView() {
+      const wrapRect = wrap.getBoundingClientRect();
+      const padding = 60;
+      // 전체 노드 바운딩 박스 계산
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      NODES.forEach(n => {
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x + n.w);
+        maxY = Math.max(maxY, n.y + n.h);
+      });
+      const contentW = maxX - minX + padding * 2;
+      const contentH = maxY - minY + padding * 2;
+      scale = Math.min(wrapRect.width / contentW, wrapRect.height / contentH, 1.5);
+      panX = (wrapRect.width - contentW * scale) / 2 - (minX - padding) * scale;
+      panY = (wrapRect.height - contentH * scale) / 2 - (minY - padding) * scale;
+      applyTransform();
+    }
+
+    document.getElementById('zoomFit').addEventListener('click', fitToView);
+
+    // 키보드 단축키: Cmd/Ctrl + 0 = fit, +/- = zoom
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); zoomTo(scale * 1.25); }
+      if ((e.metaKey || e.ctrlKey) && e.key === '-') { e.preventDefault(); zoomTo(scale / 1.25); }
+      if ((e.metaKey || e.ctrlKey) && e.key === '0') { e.preventDefault(); fitToView(); }
+    });
+
+    // 초기: 전체 보기
+    fitToView();
+  </script>
+</body>
+</html>
