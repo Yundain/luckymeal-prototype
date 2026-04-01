@@ -109,8 +109,8 @@
 
     /* ── 최근 수정 뱃지 ── */
     .updated-badge {
-      display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
-      font-size: 11px; color: var(--text-muted);
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--text-muted); white-space: nowrap; margin-right: 8px;
     }
     .updated-badge svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.6; }
 
@@ -426,7 +426,8 @@
     <div class="right-col">
       <div class="panel-tabs">
         <button class="panel-tab active">스펙<span class="tab-count fb-badge" id="fbBadge" style="display:none; background:rgba(62,207,142,0.15); color:var(--accent);"></span><span class="tab-count fb-badge warn" id="fbUnresolved" style="display:none;"></span></button>
-        <button class="title-action-btn" onclick="exportAllMd()" style="margin-left:auto; margin-right:4px; align-self:center;">Export .md</button>
+        <span class="updated-badge" id="globalUpdatedBadge" style="margin-left:auto; align-self:center;"></span>
+        <button class="title-action-btn" onclick="exportAllMd()" style="margin-right:4px; align-self:center;">Export .md</button>
         <button class="kb-toggle" id="kbToggle" onclick="toggleKeyboard()">
           <span class="kb-toggle-label">⌨️ 키보드</span>
           <div class="kb-toggle-track" id="kbTrack"><div class="kb-toggle-thumb"></div></div>
@@ -1002,9 +1003,7 @@
       const titleBar = document.getElementById('screenTitleBar');
       let tb=`<span class="badge badge-step">${sc.label}</span>`;
       if(sc.us)tb+=`<span class="badge badge-us">${sc.us}</span>`;
-      const specAge=getRelativeTime(new Date(SPEC_UPDATED_AT));
       tb+=`<div class="title-row"><div class="title-text"><h1>${sc.title}</h1><p class="desc">${sc.desc}</p>`;
-      tb+=`<div class="updated-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${specAge} 수정</div>`;
       tb+=`</div>`;
       tb+=`<div class="title-actions"><button class="title-action-btn" onclick="copyAsPrompt()">Copy Prompt</button></div></div>`;
       titleBar.innerHTML=tb;
@@ -1284,6 +1283,10 @@
       // 스크롤 하단
       setTimeout(()=>{ ann.scrollTop=ann.scrollHeight; },50);
     });
+
+    // 글로벌 수정일 뱃지
+    document.getElementById('globalUpdatedBadge').innerHTML=
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${getRelativeTime(new Date(SPEC_UPDATED_AT))} 수정`;
 
     // 피드백 데이터 로드 후 초기 렌더링
     loadFeedback().then(()=>{
