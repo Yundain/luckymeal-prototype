@@ -9,7 +9,7 @@ const TOGGLE_ITEMS = [
   {
     key: 'direction', icon: '📍', label: '찾아오는 길 안내',
     expandType: 'text',
-    expandPlaceholder: '예: 골목 안쪽 2번째 건물, 파란 간판',
+    expandPlaceholder: '설명을 입력해주세요',
   },
 ];
 
@@ -132,21 +132,27 @@ function getTraitChips(selectedMenus) {
   return [...COMMON_CHIPS, ...extra];
 }
 
-export default function StoreInfo({ onNext, onBack, onClose, selectedMenus }) {
-  const [photos, setPhotos] = useState([]);
+export default function StoreInfo({ onNext, onBack, onClose, selectedMenus, initialData, onDataChange }) {
+  const [photos, setPhotos] = useState(initialData?.photos || []);
   const [toggles, setToggles] = useState(() =>
-    Object.fromEntries(TOGGLE_ITEMS.map((item) => [item.key, false]))
+    initialData?.toggles || Object.fromEntries(TOGGLE_ITEMS.map((item) => [item.key, false]))
   );
   const [expandData, setExpandData] = useState(() =>
-    Object.fromEntries(TOGGLE_ITEMS.filter((i) => i.expandType).map((item) => [item.key, '']))
+    initialData?.expandData || Object.fromEntries(TOGGLE_ITEMS.filter((i) => i.expandType).map((item) => [item.key, '']))
   );
-  const [selectedTraits, setSelectedTraits] = useState(new Set());
-  const [description, setDescription] = useState('');
+  const [selectedTraits, setSelectedTraits] = useState(() => new Set(initialData?.selectedTraits || []));
+  const [description, setDescription] = useState(initialData?.description || '');
   const [referralQuery, setReferralQuery] = useState('');
-  const [referralStore, setReferralStore] = useState(null);
+  const [referralStore, setReferralStore] = useState(initialData?.referralStore || null);
   const [showReferralSheet, setShowReferralSheet] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const referralInputRef = useRef(null);
   const fileRef = useRef(null);
+
+  // App에 변경 전파
+  useEffect(() => {
+    onDataChange?.({ photos, toggles, expandData, selectedTraits: [...selectedTraits], description, referralStore });
+  }, [photos, toggles, expandData, selectedTraits, description, referralStore]);
 
   // 어노테이션 케이스 수신
   useEffect(() => {
@@ -400,9 +406,14 @@ export default function StoreInfo({ onNext, onBack, onClose, selectedMenus }) {
                         onChange={(e) => setExpandData((prev) => ({ ...prev, [item.key]: e.target.value }))}
                         onClick={(e) => e.stopPropagation()}
                         placeholder={item.expandPlaceholder}
-                        className="w-full h-[40px] pl-9 pr-3 rounded-[12px] border border-[#e3e3df] bg-[#f8f8f6] text-[13px] text-[#3a3a37] leading-[1.5] placeholder:text-[#ababa9] outline-none focus:border-[#16cc83] transition-colors"
+                        className={`w-full h-[40px] pl-9 pr-3 rounded-[12px] border bg-[#f8f8f6] text-[13px] text-[#3a3a37] leading-[1.5] placeholder:text-[#ababa9] outline-none transition-colors ${
+                          !(expandData[item.key] || '').trim() ? 'border-[#ff4444] focus:border-[#ff4444]' : 'border-[#e3e3df] focus:border-[#16cc83]'
+                        }`}
                       />
                     </div>
+                    {!(expandData[item.key] || '').trim() && (
+                      <p className="text-[12px] text-[#ff4444] mt-1 pl-1">설명을 입력해주세요</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -559,12 +570,44 @@ export default function StoreInfo({ onNext, onBack, onClose, selectedMenus }) {
       <div className="shrink-0 px-3 pb-8 pt-3 bg-gradient-to-t from-white via-white to-white/0">
         <button
           data-annotate="info-cta"
-          onClick={() => onNext?.({ toggles, expandData, selectedTraits: [...selectedTraits], description, photos, referralStore })}
+          onClick={() => setShowSubmitConfirm(true)}
           className="w-full h-[52px] bg-[#16cc83] rounded-[18px] flex items-center justify-center active:bg-[#12b574] transition-colors"
         >
           <span className="text-[14px] font-semibold text-white leading-[1.5]">건너뛰고 등록하기</span>
         </button>
       </div>
+
+      {/* 제출 확인 모달 */}
+      {showSubmitConfirm && (
+        <div className="absolute inset-0 z-[70] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowSubmitConfirm(false)} />
+          <div className="relative bg-white rounded-[20px] mx-8 px-6 pt-6 pb-4 w-full max-w-[300px] animate-slide-up">
+            <h3 className="text-[18px] font-semibold text-[#1d1d1d] leading-[1.5] mb-2">
+              입점 신청을 완료할까요?
+            </h3>
+            <p className="text-[14px] text-[#6d6d6b] leading-[1.6] mb-5">
+              실제 오픈 전, 담당자가 다시 함께 확인해드려요. 모든 정보는 언제든지 수정 가능해요.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSubmitConfirm(false)}
+                className="flex-1 h-[48px] border border-[#e3e3df] rounded-[14px] flex items-center justify-center"
+              >
+                <span className="text-[14px] font-semibold text-[#6d6d6b] leading-[1.5]">취소</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowSubmitConfirm(false);
+                  onNext?.({ toggles, expandData, selectedTraits: [...selectedTraits], description, photos, referralStore });
+                }}
+                className="flex-1 h-[48px] bg-[#16cc83] rounded-[14px] flex items-center justify-center active:bg-[#12b574] transition-colors"
+              >
+                <span className="text-[14px] font-semibold text-white leading-[1.5]">등록하기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }

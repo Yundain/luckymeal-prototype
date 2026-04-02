@@ -22,14 +22,16 @@ const ALL_STORES = [
   { name: '베이커리 한강점', address: '서울 용산구 이태원로 200 (한남동)' },
 ];
 
-export default function StoreSearch({ onSelect, onBack, onClose }) {
-  const [query, setQuery] = useState('');
+export default function StoreSearch({ onSelect, onBack, onClose, initialQuery = '', onQueryChange }) {
+  const [query, setQuery] = useState(initialQuery);
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => { onQueryChange?.(query); }, [query]);
 
   // 어노테이션 케이스 수신
   useEffect(() => {

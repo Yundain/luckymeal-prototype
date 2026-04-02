@@ -83,8 +83,12 @@ export default function App() {
   const [screen, setScreenState] = useState(() => getScreenFromHash() || 'role-select');
   const [userEmail, setUserEmail] = useState('');
   const [selectedStore, setSelectedStore] = useState(null);
+  const [storeSearchQuery, setStoreSearchQuery] = useState('');
   const [selectedDays, setSelectedDays] = useState([]);
   const [selectedMenus, setSelectedMenus] = useState([]);
+  const [priceConfig, setPriceConfig] = useState({ price: 12000, quantity: 4 });
+  const [pickupDaySettings, setPickupDaySettings] = useState(null);
+  const [storeInfoData, setStoreInfoData] = useState(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showDraftRestore, setShowDraftRestore] = useState(false);
   const [draftData, setDraftData] = useState(null);
@@ -247,7 +251,9 @@ export default function App() {
         {screen === 'store-search' && (
           <StoreSearch
             onClose={handleClose}
-            onBack={() => setScreen('phone')}
+            onBack={handleClose}
+            initialQuery={storeSearchQuery}
+            onQueryChange={setStoreSearchQuery}
             onSelect={(store) => {
               setSelectedStore(store);
               setScreen('store-detail-input');
@@ -274,7 +280,7 @@ export default function App() {
           <StoreLanding
             storeName={selectedStore?.name || '가게'}
             onClose={handleClose}
-            onBack={() => setScreen('store-search')}
+            onBack={() => setScreen('store-detail-input')}
             onNext={() => setScreen('menu-select')}
           />
         )}
@@ -304,6 +310,9 @@ export default function App() {
             onNext={(config) => setScreen('pickup-time')}
             onDaysChange={(days) => setSelectedDays(days)}
             onStepClick={handleStepClick}
+            initialPrice={priceConfig.price}
+            initialQuantity={priceConfig.quantity}
+            onPriceChange={setPriceConfig}
           />
         )}
 
@@ -315,6 +324,8 @@ export default function App() {
             onBack={() => setScreen('price-quantity')}
             onNext={(timeSettings) => setScreen('store-info')}
             onStepClick={handleStepClick}
+            initialDaySettings={pickupDaySettings}
+            onDaySettingsChange={setPickupDaySettings}
           />
         )}
 
@@ -322,10 +333,12 @@ export default function App() {
         {screen === 'store-info' && (
           <StoreInfo
             onClose={handleClose}
-            onBack={() => setScreen('store-detail-input')}
+            onBack={() => setScreen('pickup-time')}
             onNext={() => setScreen('registration-complete')}
             onStepClick={handleStepClick}
             selectedMenus={selectedMenus}
+            initialData={storeInfoData}
+            onDataChange={setStoreInfoData}
           />
         )}
 

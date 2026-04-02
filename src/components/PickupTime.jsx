@@ -7,6 +7,8 @@ const ALL_DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
 const MAX_SLOTS = 2;
 
+const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
 const CASE_PRESETS = {
   'pickup-all-on': {
     daySettings: ALL_DAYS.map((day) => ({
@@ -46,12 +48,12 @@ const CASE_PRESETS = {
   },
 };
 
-export default function PickupTime({ selectedDays, onNext, onBack, onClose, onStepClick }) {
+export default function PickupTime({ selectedDays, onNext, onBack, onClose, onStepClick, initialDaySettings, onDaySettingsChange }) {
   const activeDayLabels = (selectedDays || ['월요일','화요일','수요일','목요일','금요일','토요일'])
     .map((d) => d.replace('요일', ''));
 
   const [daySettings, setDaySettings] = useState(() =>
-    ALL_DAYS.map((day) => ({
+    initialDaySettings || ALL_DAYS.map((day) => ({
       day,
       active: activeDayLabels.includes(day),
       slots: [{ startTime: '18:00', endTime: '19:00' }],
@@ -60,6 +62,12 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
 
   // 타임피커 상태: { type: 'day', index, slotIndex } | { type: 'bulk' }
   const [pickerMode, setPickerMode] = useState(null);
+
+  // 인라인 에러: { [dayIndex]: 'error message' }
+  const [slotErrors, setSlotErrors] = useState({});
+
+  // App에 변경 전파
+  useEffect(() => { onDaySettingsChange?.(daySettings); }, [daySettings]);
 
   // 어노테이션 케이스 수신
   useEffect(() => {
@@ -81,29 +89,47 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
 
   const handlePickerApply = (start, end, applyToAll) => {
     if (!pickerMode) return;
+    let newSettings;
     if (applyToAll) {
-      // 같은 슬롯 인덱스에 일괄 적용
-      setDaySettings((prev) =>
-        prev.map((d) => {
-          if (!d.active) return d;
-          const newSlots = [...d.slots];
-          const si = pickerMode.slotIndex;
-          if (si < newSlots.length) {
-            newSlots[si] = { startTime: start, endTime: end };
-          }
-          return { ...d, slots: newSlots };
-        })
-      );
+      newSettings = daySettings.map((d) => {
+        if (!d.active) return d;
+        const newSlots = [...d.slots];
+        const si = pickerMode.slotIndex;
+        if (si < newSlots.length) {
+          newSlots[si] = { startTime: start, endTime: end };
+        }
+        return { ...d, slots: newSlots };
+      });
     } else {
-      setDaySettings((prev) =>
-        prev.map((d, i) => {
-          if (i !== pickerMode.index) return d;
-          const newSlots = [...d.slots];
-          newSlots[pickerMode.slotIndex] = { startTime: start, endTime: end };
-          return { ...d, slots: newSlots };
-        })
-      );
+      newSettings = daySettings.map((d, i) => {
+        if (i !== pickerMode.index) return d;
+        const newSlots = [...d.slots];
+        newSlots[pickerMode.slotIndex] = { startTime: start, endTime: end };
+        return { ...d, slots: newSlots };
+      });
     }
+    // 2슬롯인 경우 자동 정렬 (이른 타임이 위)
+    newSettings = newSettings.map((d) => {
+      if (d.slots.length < 2) return d;
+      const sorted = [...d.slots].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+      return { ...d, slots: sorted };
+    });
+    setDaySettings(newSettings);
+
+    // 인라인 에러 검증
+    const errors = {};
+    newSettings.forEach((d, i) => {
+      if (!d.active || d.slots.length < 2) return;
+      const s0Start = toMin(d.slots[0].startTime), s0End = toMin(d.slots[0].endTime);
+      const s1Start = toMin(d.slots[1].startTime), s1End = toMin(d.slots[1].endTime);
+      if (s0Start < s1End && s0End > s1Start) {
+        errors[i] = '타임 간 최소 1시간 간격이 필요해요';
+      } else {
+        const gap = Math.min(Math.abs(s1Start - s0End), Math.abs(s0Start - s1End));
+        if (gap < 60) errors[i] = '타임 간 최소 1시간 간격이 필요해요';
+      }
+    });
+    setSlotErrors(errors);
     setPickerMode(null);
   };
 
@@ -113,6 +139,27 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
         i === index ? { ...d, active: !d.active } : d
       )
     );
+    const d = daySettings[index];
+    if (d.active) {
+      // 비활성화 → 에러 제거
+      setSlotErrors((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    } else {
+      // 활성화 → 2슬롯이면 에러 재검증
+      if (d.slots.length >= 2) {
+        const s0Start = toMin(d.slots[0].startTime), s0End = toMin(d.slots[0].endTime);
+        const s1Start = toMin(d.slots[1].startTime), s1End = toMin(d.slots[1].endTime);
+        if (s0Start < s1End && s0End > s1Start) {
+          setSlotErrors((prev) => ({ ...prev, [index]: '타임 간 최소 1시간 간격이 필요해요' }));
+        } else {
+          const gap = Math.min(Math.abs(s1Start - s0End), Math.abs(s0Start - s1End));
+          if (gap < 60) setSlotErrors((prev) => ({ ...prev, [index]: '타임 간 최소 1시간 간격이 필요해요' }));
+        }
+      }
+    }
   };
 
   const addSlot = (index) => {
@@ -132,47 +179,21 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
         return { ...d, slots: newSlots };
       })
     );
+    // 슬롯 1개가 되면 에러 제거
+    setSlotErrors((prev) => {
+      const next = { ...prev };
+      delete next[dayIndex];
+      return next;
+    });
   };
 
-  // 전체 OFF 체크
+  // 전체 OFF 체크 + 슬롯 에러 체크
   const hasAnyActive = daySettings.some((d) => d.active);
+  const hasSlotErrors = Object.keys(slotErrors).length > 0;
+  const canProceed = hasAnyActive && !hasSlotErrors;
 
   // 2슬롯이 아닌 활성 요일이 하나라도 있는지
   const hasSingleSlotDays = daySettings.some((d) => d.active && d.slots.length < MAX_SLOTS);
-
-  // 슬롯 간 유효성 검증 콜백 (TimeRangePickerSheet에 전달)
-  const validateSlot = (newStart, newEnd) => {
-    if (!pickerMode || pickerMode.type !== 'day') return null;
-    const daySetting = daySettings[pickerMode.index];
-    if (!daySetting || daySetting.slots.length < 2) return null;
-
-    const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-    const newStartMin = toMin(newStart);
-    const newEndMin = toMin(newEnd);
-
-    // 다른 슬롯 가져오기
-    const otherIdx = pickerMode.slotIndex === 0 ? 1 : 0;
-    const other = daySetting.slots[otherIdx];
-    if (!other) return null;
-    const otherStartMin = toMin(other.startTime);
-    const otherEndMin = toMin(other.endTime);
-
-    // #5: 겹침 체크
-    if (newStartMin < otherEndMin && newEndMin > otherStartMin) {
-      return '시간이 겹쳐요';
-    }
-
-    // #4: 간격 < 1시간 체크
-    const gap = Math.min(
-      Math.abs(newStartMin - otherEndMin),
-      Math.abs(otherStartMin - newEndMin)
-    );
-    if (gap < 60) {
-      return '슬롯 간 최소 1시간 간격이 필요해요';
-    }
-
-    return null;
-  };
 
   // 2타임 안내 바텀시트
   const [showTwoSlotGuide, setShowTwoSlotGuide] = useState(false);
@@ -185,7 +206,15 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
     setDaySettings((prev) =>
       prev.map((d) => {
         if (!d.active || d.slots.length >= MAX_SLOTS) return d;
-        return { ...d, slots: [...d.slots, { startTime: '11:00', endTime: '12:00' }] };
+        const firstStart = parseInt(d.slots[0].startTime.split(':')[0]);
+        // 1타임이 15시 이후면 오전(11~12), 이전이면 저녁(18~19)
+        const newSlot = firstStart >= 15
+          ? { startTime: '11:00', endTime: '12:00' }
+          : { startTime: '18:00', endTime: '19:00' };
+        const slots = [d.slots[0], newSlot].sort((a, b) =>
+          toMin(a.startTime) - toMin(b.startTime)
+        );
+        return { ...d, slots };
       })
     );
     setShowTwoSlotGuide(false);
@@ -273,8 +302,8 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
         <div data-annotate="pickup-daylist" className="px-5 pt-5 pb-3 flex flex-col gap-4 items-end">
           {daySettings.map((setting, index) => (
             <div key={setting.day} className="flex flex-col gap-2 w-full">
-              {/* 슬롯들 */}
-              {setting.slots.map((slot, slotIndex) => (
+              {/* 슬롯들 + 인라인 에러 (비활성 시 첫 줄만) */}
+              {(setting.active ? setting.slots : [setting.slots[0]]).map((slot, slotIndex) => (
                 <div key={slotIndex} data-annotate="pickup-slot" className="flex items-center gap-2 w-full">
                   {/* 토글 pill (첫 번째 슬롯에만) */}
                   {slotIndex === 0 ? (
@@ -341,6 +370,12 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
                   )}
                 </div>
               ))}
+              {/* 인라인 에러 메시지 */}
+              {slotErrors[index] && (
+                <p className="text-[13px] font-medium text-[#ff4444] leading-[1.5] text-center">
+                  {slotErrors[index]}
+                </p>
+              )}
             </div>
           ))}
 
@@ -382,10 +417,10 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
             <span className="text-[14px] font-semibold text-[#6d6d6b] leading-[1.5]">픽업 방식</span>
           </button>
           <button
-            onClick={() => hasAnyActive && onNext?.(daySettings.filter((d) => d.active))}
-            disabled={!hasAnyActive}
+            onClick={() => canProceed && onNext?.(daySettings.filter((d) => d.active))}
+            disabled={!canProceed}
             className={`flex-1 h-[52px] rounded-[18px] flex items-center justify-center transition-colors ${
-              hasAnyActive ? 'bg-[#16cc83] active:bg-[#12b574]' : 'bg-[#beedd3] cursor-not-allowed'
+              canProceed ? 'bg-[#16cc83] active:bg-[#12b574]' : 'bg-[#beedd3] cursor-not-allowed'
             }`}
           >
             <span className="text-[14px] font-semibold text-white leading-[1.5]">다음</span>
@@ -433,7 +468,6 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
           showApplyAll={pickerMode.type === 'day'}
           onApply={handlePickerApply}
           onClose={() => setPickerMode(null)}
-          onValidate={validateSlot}
         />
       )}
     </div>

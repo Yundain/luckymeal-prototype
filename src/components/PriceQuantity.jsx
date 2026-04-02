@@ -122,16 +122,19 @@ function RollingNumber({ value, className }) {
   );
 }
 
-export default function PriceQuantity({ selectedDays, onNext, onBack, onClose, onDaysChange, onStepClick }) {
-  const [price, setPrice] = useState(12000);
-  const [quantity, setQuantity] = useState(4);
+export default function PriceQuantity({ selectedDays, onNext, onBack, onClose, onDaysChange, onStepClick, initialPrice = 12000, initialQuantity = 4, onPriceChange }) {
+  const [price, setPrice] = useState(initialPrice);
+  const [quantity, setQuantity] = useState(initialQuantity);
   const [showRevenue, setShowRevenue] = useState(false);
   const [showPricePicker, setShowPricePicker] = useState(false);
   const [showQuantityPicker, setShowQuantityPicker] = useState(false);
-  const [showToast, setShowToast] = useState(true);
+  const [showToast, setShowToast] = useState(() => !sessionStorage.getItem('price-toast-shown'));
   const [showDaysPicker, setShowDaysPicker] = useState(false);
   const [revenueBounce, setRevenueBounce] = useState(false);
   const prevRevenueRef = useRef(null);
+
+  // App에 변경 전파
+  useEffect(() => { onPriceChange?.({ price, quantity }); }, [price, quantity]);
 
   // postMessage 리스너: 외부에서 케이스 프리셋 적용
   useEffect(() => {
@@ -149,6 +152,8 @@ export default function PriceQuantity({ selectedDays, onNext, onBack, onClose, o
   }, []);
 
   useEffect(() => {
+    if (!showToast) return;
+    sessionStorage.setItem('price-toast-shown', '1');
     const timer = setTimeout(() => setShowToast(false), 3000);
     return () => clearTimeout(timer);
   }, []);
@@ -196,13 +201,9 @@ export default function PriceQuantity({ selectedDays, onNext, onBack, onClose, o
       {/* 토스트 */}
       {showToast && (
         <div className="absolute top-[50px] left-0 right-0 z-[70] flex justify-center animate-toast-in">
-          <div className="bg-[#545453] rounded-[16px] px-3 py-2.5 flex items-center gap-2 shadow-[0_4px_16px_rgba(0,0,0,0.25)]">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="10" fill="#16cc83"/>
-              <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="text-[14px] font-semibold text-white leading-[1.5] pr-1.5 whitespace-nowrap">
-              추천값을 세팅했어요
+          <div className="bg-[#545453] rounded-[16px] px-4 py-2.5 shadow-[0_4px_16px_rgba(0,0,0,0.25)]">
+            <span className="text-[14px] font-semibold text-white leading-[1.5] whitespace-nowrap">
+              추천 가격/수량을 세팅했어요
             </span>
           </div>
         </div>

@@ -586,6 +586,7 @@
         desc:'가게 이름으로 검색하여 선택하거나 직접 입력.',
         nav: { from: [{ label:'③-3 전화번호', id:'phone' }], to: [
           { label:'④-2 가게명 확인', id:'store-detail-input', condition:'가게 탭 또는 "직접 입력하기"' },
+          { label:'종료 확인 시트', id:'exit-confirm', condition:'← 뒤로가기' },
         ]},
         cases: [
           { label:'전체 리스트', status:'done', caseId:'search-empty-query' },
@@ -594,8 +595,9 @@
           { label:'결과 10개 초과 (최대)', status:'todo' },
         ],
         specs: [
-          { area:'검색 입력', cat:'state', sel:'search-field', text:'실시간 필터링. 주소: 도로명 (동 이름).' },
+          { area:'검색 입력', cat:'state', sel:'search-field', text:'실시간 필터링. 주소: 도로명 (동 이름). ④-2에서 뒤로가기 시 검색어 유지.' },
           { area:'검색 결과 리스트', cat:'api', sel:'search-results', text:'<code>GET /place/places/search</code> → 네이버 지역검색 API (최대 5건, 정확도순) → 각 결과를 카카오 주소 API로 정규화하여 <code>{title, address, detailAddress}</code> 반환.' },
+          { area:'뒤로가기', cat:'state', text:'← 뒤로가기 탭 시 ③ 전화번호로 직접 이동하지 않고 <strong>종료 확인 시트</strong> 노출. 가게등록 플로우의 첫 화면이므로 이탈 방지.' },
         ],
         why:'도로명 (동 이름) — 네이버지도·카카오맵·배민 형태.'
       },
@@ -624,7 +626,7 @@
         id:'store-landing', hash:'#8', label:'⑤ 럭키백 소개', title:'럭키백 소개',
         us:'US3 · 18.5% 이탈',
         desc:'럭키백 개념 전달 + 등록 동기 부여. 스크롤 다 내려야 다음 진행.',
-        nav: { from: [{ label:'④ 가게 검색', id:'store-search' }], to: [
+        nav: { from: [{ label:'④-2 가게명 확인', id:'store-detail-input' }], to: [
           { label:'⑥ 메뉴 선택', id:'menu-select', condition:'하단 도달 후 "다음"' },
         ]},
         cases: [
@@ -687,9 +689,9 @@
         ],
         specs: [
           { area:'설정 입력', sel:'price-sentence', cat:'motion', text:'금액/수량 변경 시 롤링 숫자 애니메이션.' },
-          { area:'설정 입력', cat:'state', text:'기본값: 12,000원 / 4개 (일괄).' },
+          { area:'설정 입력', cat:'state', text:'기본값: 12,000원 / 4개 (일괄). 최초 진입 시 토스트 "추천 가격/수량을 세팅했어요" 1회 표시 (3초 후 자동 숨김, 재진입 시 미노출).' },
           { area:'설정 입력', cat:'state', text:'<strong>"주 6일"</strong> 디폴트 표시. 탭 시 ⑥-a 요일 선택 바텀시트. 변경 시 수익 즉시 재계산.' },
-          { area:'월 예상 수익', sel:'price-revenue', cat:'state', text:'<span class="hl">월 예상 수익</span> 실시간 계산.' },
+          { area:'월 예상 수익', sel:'price-revenue', cat:'state', text:'<span class="hl">월 예상 수익</span> 실시간 계산.<br><strong>계산식:</strong> <code>판매가 = 정가 × 50%</code>, <code>수수료 = 판매가 × 12.8%</code> (럭키밀 9.8% + PG 3%), <code>개당 수익 = 판매가 - 수수료</code>, <code>월 수익 = 개당 수익 × 수량 × 주당 판매일수 × 4.3주</code> (1,000원 단위 반올림).' },
           { area:'월 예상 수익', cat:'todo', text:'⚠️ "폐기하면 0원" 문구 추가 필요.' },
         ],
         why:'"실수령액" → "사장님 수익". 수수료 12.8% (럭키밀 9.8% + PG 3%).'
@@ -763,8 +765,11 @@
           { area:'요일별 설정 (전체)', cat:'todo', text:'⚠️ 추가 필요: "매일 판매하지 않아도 돼요" 인포박스 (최상단).' },
           { area:'하단 CTA', sel:'pickup-method-btn', cat:'state', text:'<strong>"픽업 방식" 버튼</strong> (아웃라인) → 노션 웹뷰로 픽업 안내 페이지 오픈.' },
           { area:'시간 슬롯', sel:'pickup-slot', cat:'state', text:'우측 chevron(>) 표시로 탭 가능 어포던스. ON 시 탭 → 타임피커. <strong>OFF 시 탭 → 해당 요일 ON 전환.</strong>' },
-          { area:'시간 슬롯', cat:'api', text:'<strong>검증 (프로덕션 기준):</strong> 시작시간 > 종료시간 → 에러 (60011). 2슬롯 시 슬롯 간 <strong>최소 1시간 간격</strong> 필수 + 시간 겹침 불가 (60005). 전체 요일 OFF → "다음" 비활성 처리 필요.' },
-          { area:'2타임 열기', sel:'pickup-2slot', cat:'state', text:'탭 → 안내 바텀시트("점심·저녁 각각 다른 시간에 판매할 수 있어요") → 확인 시 2타임 추가 (디폴트 11:00~12:00).' },
+          { area:'시간 슬롯', cat:'state', text:'<strong>요일 비활성화 시:</strong> "없음 ~ 없음" 1줄만 표시 (2슬롯이어도 숨김). 에러 즉시 제거. 재활성화 시 이전 입력값 복원 + 에러 재검증.' },
+          { area:'시간 슬롯', cat:'state', text:'<strong>슬롯 삭제 시:</strong> 해당 요일 에러 즉시 제거.' },
+          { area:'시간 슬롯', cat:'state', text:'<strong>인라인 에러 (슬롯 아래 중앙, 빨간색):</strong> 슬롯 간 1시간 미만 또는 시간 겹침 → "타임 간 최소 1시간 간격이 필요해요". 에러 존재 시 "다음" 비활성화.' },
+          { area:'시간 슬롯', cat:'api', text:'<strong>검증 (프로덕션 기준):</strong> 시작시간 >= 종료시간 → 에러 (60011). 시작~종료 간 <strong>최소 30분 간격</strong> 필수. 2슬롯 시 슬롯 간 <strong>최소 1시간 간격</strong> + 시간 겹침 불가. 전체 요일 OFF → "다음" 비활성.' },
+          { area:'2타임 열기', sel:'pickup-2slot', cat:'state', text:'탭 → 안내 바텀시트("점심·저녁 각각 다른 시간에 판매할 수 있어요") → 확인 시 2타임 추가. <strong>기본값:</strong> 1타임 시작 15시 이후 → 11:00~12:00, 15시 이전 → 18:00~19:00. 추가 후 이른 타임이 항상 위에 오도록 자동 정렬.' },
         ],
         why:'58.3% 이탈. "처음으로 영업 시간이 아닌 시간을 정하게 된 것".',
       },
@@ -779,6 +784,8 @@
         ],
         specs: [
           { cat:'state', text:'"모든 요일에 적용" 체크 시 활성 요일 전체에 동일 시간 반영.' },
+          { cat:'state', text:'<strong>실시간 검증 (바텀시트 내):</strong><br>• 시작 >= 종료 → "시작 시간이 종료 시간보다 늦어요"<br>• 시작~종료 간격 < 30분 → "픽업시간은 최소 30분 이상이어야 합니다"<br>에러 시 "적용" 버튼 비활성화(회색). 슬롯 간 검증(겹침/간격)은 바텀시트에서 하지 않고 ⑧ 페이지 인라인에서 처리.' },
+          { cat:'state', text:'적용 후 2슬롯인 경우 이른 타임이 항상 위에 오도록 자동 정렬.' },
         ],
         why:''
       },
@@ -812,10 +819,12 @@
           { area:'가게 속성 (토글)', sel:'info-toggles', cases:[
             { label:'전체 OFF', status:'done', caseId:'info-empty' },
             { label:'전체 ON', status:'done', caseId:'info-all-toggles' },
-          ], cat:'state', text:'ON/OFF. 주차·찾아오는 길 — ON 시 검색 아이콘 + 텍스트 입력란 확장. 반려동물 동반은 토글만.' },
+          ], cat:'state', text:'ON/OFF. 주차·찾아오는 길 — ON 시 텍스트 입력란 확장. 반려동물 동반은 토글만.' },
+          { area:'가게 속성 (토글)', cat:'state', text:'<strong>ON + 텍스트 미입력 시:</strong> 입력 필드 빨간 테두리 + "설명을 입력해주세요" 빨간색 에러 표시. 단, 등록 버튼은 비활성화하지 않음 (선택사항).' },
           { area:'가게 속성 (토글)', cat:'api', text:'<strong>string으로 저장.</strong> 임시저장 시 복원 가능해야 함. 추후 객관식 마이그레이션 예정 (텍스트 파싱).' },
           { area:'추천인 사장님 (레퍼럴)', sel:'info-referral', cat:'state', text:'가게 검색 → 선택 방식. 선택 시 초록 테두리 칩으로 확정, X 버튼으로 해제. 검색 결과 없으면 "검색 결과가 없습니다" 안내.' },
           { area:'추천인 사장님 (레퍼럴)', cat:'api', text:'<strong>계정(owner)에 종속.</strong> 첫 가게 등록 시에만 노출, 이후 가게 추가 시 자동 적용 (UI 미노출). <code>referral_store_id</code>(FK) 저장. 레퍼럴 보상 정책은 추후 별도 설계.' },
+          { area:'등록 확인 모달', cat:'state', text:'<strong>"건너뛰고 등록하기" 탭 → 확인 모달:</strong><br>• 타이틀: "입점 신청을 완료할까요?"<br>• 설명: "실제 오픈 전, 담당자가 다시 함께 확인해드려요. 모든 정보는 언제든지 수정 가능해요."<br>• CTA: "취소" (아웃라인) / "등록하기" (Primary)<br>• 등록하기 탭 → ⑩ 등록 완료로 이동.' },
         ],
         why:'보관·섭취를 럭키백 소개에 통합(AI 파싱). 칩(토글X) — 2줄 vs 6줄.'
       },
@@ -833,7 +842,7 @@
       {
         id:'exit-confirm', hash:'#7', label:'공통 · 종료 확인', title:'종료 확인 바텀시트 (임시저장)',
         us:'',
-        desc:'④~⑨ 모든 스텝에서 X 버튼 탭 시 노출. "저장하고 나가기" 시 현재 스텝 데이터까지 서버 저장 후 홈 이동.',
+        desc:'④~⑨ 모든 스텝에서 X 버튼 탭 시 노출. ④ 가게 검색에서 뒤로가기(←) 시에도 노출. "저장하고 나가기" 시 현재 스텝 데이터까지 서버 저장 후 홈 이동.',
         nav: { from: [
           { label:'④ 가게 검색', id:'store-search' },
           { label:'⑤ 럭키백 소개', id:'store-landing' },
@@ -856,6 +865,7 @@
           { cat:'motion', text:'바텀시트 슬라이드업 + 딤 배경 <code>bg-black/40</code>.' },
           { cat:'api', text:'<strong>[기존 프로덕션 임시저장 구조]</strong><br>• 저장 위치: 서버 MySQL (Place 엔티티, <code>status=DRAFT</code>)<br>• 저장 시점: 각 스텝 "다음" 클릭 시 자동 저장 + "저장하고 나가기" 시 현재 스텝 저장<br>• 복원: <code>GET /place/places/{id}/draft</code> → 마지막 완료 스텝부터 재개<br>• 만료: 없음 (무기한 유지)<br>• 상태 전환: 마지막 스텝(이미지+소개) 완료 시 DRAFT → REVIEWING' },
           { cat:'state', text:'<strong>[복원 토스트]</strong> 재진입 시(역할선택/시작하기 화면) draft 존재하면 하단 다크 토스트 노출:<br>• "작성 중인 입점 신청이 있어요" + 마지막 작성 스텝명<br>• "이어서 작성하기" (Primary) → 마지막 스텝으로 이동 + 데이터 복원<br>• "새로 시작" → draft 삭제, 처음부터' },
+          { cat:'state', text:'<strong>[입력값 유지]</strong> ④~⑨ 화면 간 뒤로가기/앞으로가기 시 입력값 유지. 가게 검색어, 판매 설정(가격·수량), 픽업시간(요일별 슬롯), 가게 정보(사진·토글·칩·소개·레퍼럴) 모두 보존.' },
         ],
         why:'프로덕션 워딩 "삭제됩니다" → "임시저장돼요"로 변경. 이탈 부담↓, 탐색 후 복귀율↑ 기대. 프로덕션에는 이미 서버 기반 draft 저장이 구현되어 있으므로 워딩+CTA만 변경하면 적용 가능.',
       },
@@ -866,7 +876,7 @@
     };
 
     // 스펙 최종 수정일 (배포 시 갱신)
-    const SPEC_UPDATED_AT = '2026-03-28T14:30:00';
+    const SPEC_UPDATED_AT = '2026-04-02T10:30:00';
 
     const HASH_MAP = {'1':'home','2':'role-select','3':'owner-preview','4':'email','5':'password','6':'phone','7':'store-search','8':'store-landing','9':'menu-select','10':'price-quantity','11':'pickup-time','12':'store-info','store-detail-input':'store-detail-input','15':'registration-complete'};
 

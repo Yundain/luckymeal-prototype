@@ -95,7 +95,7 @@ function Wheel({ items, value, onChange }) {
   );
 }
 
-export default function TimeRangePickerSheet({ startTime, endTime, onApply, onClose, showApplyAll = false, onValidate }) {
+export default function TimeRangePickerSheet({ startTime, endTime, onApply, onClose, showApplyAll = false }) {
   const [sH, setSH] = useState(() => (startTime || '18:00').split(':')[0]);
   const [sM, setSM] = useState(() => (startTime || '18:00').split(':')[1]);
   const [eH, setEH] = useState(() => (endTime || '19:00').split(':')[0]);
@@ -103,29 +103,23 @@ export default function TimeRangePickerSheet({ startTime, endTime, onApply, onCl
   const [applyToAll, setApplyToAll] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleApply = () => {
-    const start = `${sH}:${sM}`;
-    const end = `${eH}:${eM}`;
+  // 실시간 검증: 시작 >= 종료 또는 간격 < 30분
+  useEffect(() => {
     const startMin = parseInt(sH) * 60 + parseInt(sM);
     const endMin = parseInt(eH) * 60 + parseInt(eM);
-
-    // #3: start > end
     if (startMin >= endMin) {
       setErrorMsg('시작 시간이 종료 시간보다 늦어요');
-      setTimeout(() => setErrorMsg(''), 2500);
-      return;
+    } else if (endMin - startMin < 30) {
+      setErrorMsg('픽업시간은 최소 30분 이상이어야 합니다');
+    } else {
+      setErrorMsg('');
     }
+  }, [sH, sM, eH, eM]);
 
-    // #4, #5: external validation (slot gap / overlap) from PickupTime
-    if (onValidate) {
-      const extError = onValidate(start, end);
-      if (extError) {
-        setErrorMsg(extError);
-        setTimeout(() => setErrorMsg(''), 2500);
-        return;
-      }
-    }
-
+  const handleApply = () => {
+    if (errorMsg) return;
+    const start = `${sH}:${sM}`;
+    const end = `${eH}:${eM}`;
     onApply?.(start, end, applyToAll);
   };
 
@@ -208,9 +202,10 @@ export default function TimeRangePickerSheet({ startTime, endTime, onApply, onCl
           </button>
           <button
             onClick={handleApply}
-            className="flex-1 h-[52px] rounded-[18px] bg-[#16cc83] flex items-center justify-center active:bg-[#12b574] transition-colors"
+            disabled={!!errorMsg}
+            className={`flex-1 h-[52px] rounded-[18px] flex items-center justify-center transition-colors ${errorMsg ? 'bg-[#e3e3df]' : 'bg-[#16cc83] active:bg-[#12b574]'}`}
           >
-            <span className="text-[14px] font-semibold text-white leading-[1.5]">적용</span>
+            <span className={`text-[14px] font-semibold leading-[1.5] ${errorMsg ? 'text-[#a0a09e]' : 'text-white'}`}>적용</span>
           </button>
         </div>
 
