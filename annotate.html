@@ -1493,17 +1493,24 @@
         fpApply();
       };
 
-      // 휠 = 항상 줌
+      // 휠: 상하(deltaY) = 줌, 좌우(deltaX) = 패닝
       fpWrap.addEventListener('wheel', e=>{
         e.preventDefault();
-        const rect=fpWrap.getBoundingClientRect();
-        const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-        const prev=fpScale;
-        const delta = -e.deltaY * 0.005;
-        fpScale=Math.min(FP_MAX,Math.max(FP_MIN,fpScale*(1+delta)));
-        fpPanX=mx-(mx-fpPanX)*(fpScale/prev);
-        fpPanY=my-(my-fpPanY)*(fpScale/prev);
-        fpApply();
+        if(Math.abs(e.deltaX)>Math.abs(e.deltaY)){
+          // 좌우 스와이프 → 패닝
+          fpPanX-=e.deltaX;
+          fpApply();
+        } else {
+          // 상하 스크롤 / 핀치 → 줌
+          const rect=fpWrap.getBoundingClientRect();
+          const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+          const prev=fpScale;
+          const delta = -e.deltaY * 0.005;
+          fpScale=Math.min(FP_MAX,Math.max(FP_MIN,fpScale*(1+delta)));
+          fpPanX=mx-(mx-fpPanX)*(fpScale/prev);
+          fpPanY=my-(my-fpPanY)*(fpScale/prev);
+          fpApply();
+        }
       },{passive:false});
 
       // 드래그 팬

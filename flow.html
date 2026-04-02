@@ -433,27 +433,25 @@
       zoomLevelEl.textContent = Math.round(scale * 100) + '%';
     }
 
-    // 마우스 휠 / 트랙패드 핀치 줌
+    // 휠: 상하(deltaY) = 줌, 좌우(deltaX) = 패닝, 핀치(ctrlKey) = 줌
     wrap.addEventListener('wheel', e => {
       e.preventDefault();
 
-      // pinch zoom (ctrlKey) 또는 Cmd+scroll
-      if (e.ctrlKey || e.metaKey) {
+      if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+        // 상하 스크롤 / 핀치 → 줌
         const rect = wrap.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
 
         const prevScale = scale;
-        const delta = -e.deltaY * 0.008;
+        const delta = -e.deltaY * (e.ctrlKey || e.metaKey ? 0.008 : 0.005);
         scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * (1 + delta)));
 
-        // 마우스 포인터 기준 줌
         panX = mx - (mx - panX) * (scale / prevScale);
         panY = my - (my - panY) * (scale / prevScale);
       } else {
-        // 일반 스크롤 → 팬
+        // 좌우 스와이프 → 패닝
         panX -= e.deltaX;
-        panY -= e.deltaY;
       }
 
       applyTransform();
