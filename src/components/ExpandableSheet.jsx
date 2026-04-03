@@ -22,7 +22,7 @@ function scrimOpacity(heightRatio) {
   return 0.3 + 0.2 * ((heightRatio - HALF_RATIO) / (FULL_RATIO - HALF_RATIO));
 }
 
-export default function ExpandableSheet({ children, onDismiss, autoFocus = false }) {
+export default function ExpandableSheet({ children, onDismiss, autoFocus = false, title, showClose = false, stickyContent }) {
   const backdropRef = useRef(null);
   const sheetRef = useRef(null);
   const scrollRef = useRef(null);           // 내부 스크롤 컨테이너
@@ -71,6 +71,25 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
     }
   }, []);
 
+  // ── 배경 스크롤 잠금 ──
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   // ── 열림 애니메이션 (translateY 100% → 0) ──
   useEffect(() => {
     const sheet = sheetRef.current;
@@ -98,6 +117,11 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
     if (!sheet) return;
 
     const timer = setTimeout(() => {
+      // autoFocus: 첫 input/textarea에 포커스
+      if (autoFocus) {
+        const input = sheet.querySelector('input:not([disabled]),textarea:not([disabled])');
+        if (input) { input.focus(); return; }
+      }
       const els = getFocusable(sheet);
       if (els.length) els[0].focus();
     }, dur(SNAP_MS));
@@ -175,6 +199,10 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
 
   // ── 드래그 시작 ──
   const startDrag = useCallback((clientY, source = 'handle') => {
+    // 드래그 시작 시 키보드 해제
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
     dragRef.current = {
       active: true,
       source,
@@ -199,8 +227,33 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
       const iv = (clientY - d.lastY) / dt;
       d.vy = d.vy * 0.4 + iv * 0.6;
     }
+
+    const prevY = d.lastY;
     d.lastY = clientY;
     d.lastT = now;
+
+    const pixelDelta = clientY - prevY; // 양수 = 손가락 아래, 음수 = 위
+    const scrollEl = scrollRef.current;
+    const isFromContent = d.source === 'scroll' || d.source === 'scroll-pointer';
+
+    // Full 상태 + 콘텐츠 영역 드래그 → 스크롤↔시트 드래그 전환
+    if (isFromContent && d.startHeightPx >= FULL_RATIO * vpH.current - 1) {
+      const atTop = !scrollEl || scrollEl.scrollTop <= 0;
+
+      // 위로 드래그 (콘텐츠 스크롤) — scrollTop > 0이거나 Full 상태에서 위로
+      if (pixelDelta < 0 && scrollEl) {
+        scrollEl.scrollTop -= pixelDelta; // pixelDelta가 음수이므로 scrollTop 증가
+        return;
+      }
+
+      // 아래로 드래그 + scrollTop > 0 → 콘텐츠 스크롤
+      if (pixelDelta > 0 && scrollEl && !atTop) {
+        scrollEl.scrollTop -= pixelDelta;
+        return;
+      }
+
+      // 아래로 드래그 + scrollTop === 0 → 시트 드래그로 전환 (아래에서 처리)
+    }
 
     // deltaY: 양수 = 손가락 아래로 → 시트 줄어듦
     const deltaY = clientY - d.startY;
@@ -223,10 +276,16 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
     applyHeight(ratio, false);
 
     // Full 미만이면 스크롤 리셋
-    if (ratio < FULL_RATIO - 0.01 && scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
+    if (ratio < FULL_RATIO - 0.01 && scrollEl) {
+      scrollEl.scrollTop = 0;
     }
   }, [applyHeight]);
+
+  // ── 키보드 활성 여부 판단 ──
+  const isKeyboardActive = useCallback(() => {
+    const el = document.activeElement;
+    return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  }, []);
 
   // ── 드래그 종료 ──
   const endDrag = useCallback(() => {
@@ -239,6 +298,15 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
     const ratio = ratioRef.current;
     const velocity = d.vy; // positive = 아래
 
+    // Option B: 키보드가 올라와 있고 아래로 드래그 → 키보드 먼저 내리고 Half로 스냅
+    if (velocity > 0 && isKeyboardActive()) {
+      document.activeElement.blur();
+      ratioRef.current = HALF_RATIO;
+      setCurrentRatio(HALF_RATIO);
+      applyHeight(HALF_RATIO, true);
+      return;
+    }
+
     const target = resolveSnap(ratio, velocity);
 
     if (target === 'dismiss') {
@@ -248,7 +316,7 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
       setCurrentRatio(target);
       applyHeight(target, true);
     }
-  }, [resolveSnap, dismiss, applyHeight]);
+  }, [resolveSnap, dismiss, applyHeight, isKeyboardActive]);
 
   // ── 핸들 포인터 이벤트 ──
   const onHandlePointerDown = useCallback((e) => {
@@ -260,41 +328,19 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
   const scrollTouchRef = useRef({ startY: 0, sheetDragging: false });
 
   const onScrollTouchStart = useCallback((e) => {
-    const r = ratioRef.current;
-    scrollTouchRef.current = { startY: e.touches[0].clientY, sheetDragging: false };
-
-    // Full 미만이면 즉시 시트 드래그
-    if (r < FULL_RATIO - 0.01) {
-      scrollTouchRef.current.sheetDragging = true;
-      startDrag(e.touches[0].clientY, 'scroll');
-    }
+    scrollTouchRef.current = { startY: e.touches[0].clientY, sheetDragging: true };
+    startDrag(e.touches[0].clientY, 'scroll');
   }, [startDrag]);
 
   const onScrollTouchMove = useCallback((e) => {
     const st = scrollTouchRef.current;
     const touch = e.touches[0];
 
-    // 이미 시트 드래그 중이면 계속
     if (st.sheetDragging) {
       e.preventDefault();
       moveDrag(touch.clientY);
-      return;
     }
-
-    // Full 상태에서 scrollTop === 0이고 아래로 드래그 → 시트 드래그 전환
-    const scrollEl = scrollRef.current;
-    if (scrollEl && scrollEl.scrollTop <= 0) {
-      const dy = touch.clientY - st.startY;
-      if (dy > 5) {
-        // seamless 전환: 시트 드래그 시작
-        st.sheetDragging = true;
-        startDrag(touch.clientY, 'scroll');
-        e.preventDefault();
-        return;
-      }
-    }
-    // 그 외: 일반 스크롤 (preventDefault 안 함)
-  }, [startDrag, moveDrag]);
+  }, [moveDrag]);
 
   const onScrollTouchEnd = useCallback(() => {
     if (scrollTouchRef.current.sheetDragging) {
@@ -303,15 +349,33 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
     }
   }, [endDrag]);
 
-  // ── window 레벨 리스너 (핸들 드래그 지속) ──
+  // ── 콘텐츠 영역 포인터 이벤트 (데스크톱 마우스 드래그 지원) ──
+  const scrollPointerRef = useRef({ startY: 0, sheetDragging: false });
+
+  const onScrollPointerDown = useCallback((e) => {
+    // 터치 디바이스는 터치 이벤트로 처리
+    if (e.pointerType === 'touch') return;
+    // 항상 즉시 드래그 시작 (Full이든 Half든)
+    scrollPointerRef.current = { startY: e.clientY, sheetDragging: true };
+    startDrag(e.clientY, 'scroll-pointer');
+  }, [startDrag]);
+
+  // ── window 레벨 리스너 (핸들 + 콘텐츠 포인터 드래그) ──
   useEffect(() => {
     const onPM = (e) => {
-      if (!dragRef.current.active || dragRef.current.source !== 'handle') return;
-      moveDrag(e.clientY);
+      if (!dragRef.current.active) return;
+      const src = dragRef.current.source;
+      if (src === 'handle' || src === 'scroll-pointer') {
+        moveDrag(e.clientY);
+      }
     };
     const onPU = () => {
-      if (!dragRef.current.active || dragRef.current.source !== 'handle') return;
-      endDrag();
+      if (!dragRef.current.active) return;
+      const src = dragRef.current.source;
+      if (src === 'handle' || src === 'scroll-pointer') {
+        scrollPointerRef.current.sheetDragging = false;
+        endDrag();
+      }
     };
 
     window.addEventListener('pointermove', onPM);
@@ -320,10 +384,7 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
       window.removeEventListener('pointermove', onPM);
       window.removeEventListener('pointerup', onPU);
     };
-  }, [moveDrag, endDrag]);
-
-  // Full 상태일 때만 스크롤 허용
-  const isAtFull = currentRatio >= FULL_RATIO - 0.01;
+  }, [moveDrag, endDrag, startDrag]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end" role="dialog" aria-modal="true">
@@ -344,27 +405,58 @@ export default function ExpandableSheet({ children, onDismiss, autoFocus = false
       >
         {/* 핸들 바: 36×4, 터치 영역 44px+ */}
         <div
-          className="flex justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none"
-          style={{ padding: '12px 0', minHeight: '28px' }}
+          className="shrink-0 cursor-grab active:cursor-grabbing touch-none"
           onPointerDown={onHandlePointerDown}
           role="slider"
           aria-label="시트 드래그 핸들"
           tabIndex={-1}
         >
-          <div className="w-[36px] h-[4px] bg-[#C4C4C4] rounded-[2px]" />
+          <div className="flex justify-center" style={{ padding: '12px 0 0' }}>
+            <div className="w-[36px] h-[4px] bg-[#C4C4C4] rounded-[2px]" />
+          </div>
+
+          {/* 타이틀 + 닫기 버튼 헤더 */}
+          {title && (
+            <div className="flex items-center px-5 pt-3 pb-3" style={{ minHeight: '44px' }}>
+              <h3 className="flex-1 text-[16px] font-semibold text-[#3a3a37] leading-[1.5]">{title}</h3>
+              {showClose && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); dismiss(); }}
+                  className="shrink-0 w-[32px] h-[32px] flex items-center justify-center rounded-full bg-[#f0f0ee] active:bg-[#e3e3df] transition-colors"
+                  aria-label="닫기"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M1 1L13 13M13 1L1 13" stroke="#90908e" strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+          {!title && <div style={{ paddingBottom: '12px' }} />}
         </div>
+
+        {/* Sticky content (스크롤 영역 밖) */}
+        {stickyContent && <div className="shrink-0">{stickyContent}</div>}
 
         {/* Content — 스크롤↔드래그 seamless 전환 */}
         <div
           ref={scrollRef}
-          className={`flex-1 overscroll-contain ${isAtFull ? 'overflow-y-auto' : 'overflow-hidden'}`}
+          className="flex-1 overscroll-contain overflow-y-auto"
           style={{
             WebkitOverflowScrolling: 'touch',
-            touchAction: isAtFull ? 'pan-y' : 'none',
+            touchAction: 'none',
           }}
           onTouchStart={onScrollTouchStart}
           onTouchMove={onScrollTouchMove}
           onTouchEnd={onScrollTouchEnd}
+          onPointerDown={onScrollPointerDown}
+          onClick={(e) => {
+            // input/textarea 외 영역 클릭 시 키보드 해제
+            const tag = e.target.tagName;
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+              document.activeElement?.blur();
+            }
+          }}
         >
           {children}
         </div>

@@ -109,10 +109,18 @@
 
     /* ── 최근 수정 뱃지 ── */
     .updated-badge {
-      display: inline-flex; align-items: center; gap: 4px;
+      display: inline-flex; align-items: center; gap: 4px; position: relative;
       font-size: 11px; color: var(--text-muted); white-space: nowrap; margin-right: 8px;
+      cursor: default;
     }
     .updated-badge svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.6; }
+    .updated-badge .badge-tip {
+      display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      margin-top: 6px; padding: 4px 8px; border-radius: 6px;
+      background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border-default);
+      font-size: 11px; white-space: nowrap; z-index: 20; pointer-events: none;
+    }
+    .updated-badge:hover .badge-tip { display: block; }
 
     /* ── 어노테이션 타이틀 (숨김 — 상단바로 이동) ── */
     .ann h1 { display: none; }
@@ -876,19 +884,28 @@
     };
 
     // 스펙 최종 수정일 (배포 시 갱신)
-    const SPEC_UPDATED_AT = '2026-04-02T10:30:00';
+    const SPEC_UPDATED_AT = '2026-04-03T14:34:00';
 
     const HASH_MAP = {'1':'home','2':'role-select','3':'owner-preview','4':'email','5':'password','6':'phone','7':'store-search','8':'store-landing','9':'menu-select','10':'price-quantity','11':'pickup-time','12':'store-info','store-detail-input':'store-detail-input','15':'registration-complete'};
 
     // ── 상대 시간 ──
     function getRelativeTime(date){
-      const now=new Date(), diff=now-date, d=Math.floor(diff/86400000);
-      if(d===0) return '오늘';
-      if(d===1) return '어제';
+      const now=new Date(), diff=now-date;
+      const mins=Math.floor(diff/60000);
+      const hrs=Math.floor(diff/3600000);
+      const d=Math.floor(diff/86400000);
+      if(mins<1) return '방금';
+      if(mins<60) return `${mins}분 전`;
+      if(hrs<48) return `${hrs}시간 전`;
       if(d<7) return `${d}일 전`;
       if(d<30) return `${Math.floor(d/7)}주 전`;
       if(d<365) return `${Math.floor(d/30)}개월 전`;
       return `${Math.floor(d/365)}년 전`;
+    }
+    function formatDateTime(date){
+      const y=date.getFullYear(), m=String(date.getMonth()+1).padStart(2,'0'), dd=String(date.getDate()).padStart(2,'0');
+      const h=String(date.getHours()).padStart(2,'0'), mi=String(date.getMinutes()).padStart(2,'0');
+      return `${y}-${m}-${dd} ${h}:${mi}`;
     }
 
     // ── 스크린 → 마크다운 변환 ──
@@ -1295,8 +1312,9 @@
     });
 
     // 글로벌 수정일 뱃지
-    document.getElementById('globalUpdatedBadge').innerHTML=
-      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${getRelativeTime(new Date(SPEC_UPDATED_AT))} 수정`;
+    const _specDate=new Date(SPEC_UPDATED_AT);
+    const badgeEl=document.getElementById('globalUpdatedBadge');
+    badgeEl.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${getRelativeTime(_specDate)} 수정<span class="badge-tip">${formatDateTime(_specDate)}</span>`;
 
     // 피드백 데이터 로드 후 초기 렌더링
     loadFeedback().then(()=>{

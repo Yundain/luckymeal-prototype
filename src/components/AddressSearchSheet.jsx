@@ -15,7 +15,7 @@ const SAMPLE_ADDRESSES = [
   { road: '인천 연수구 송도동 6-2', jibun: '인천 연수구 송도동 6-2' },
 ];
 
-export default function AddressSearchSheet({ onSelect, onClose }) {
+export default function AddressSearchSheet({ onSelect, onClose, selectedAddress = '' }) {
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
 
@@ -29,16 +29,7 @@ export default function AddressSearchSheet({ onSelect, onClose }) {
     : [];
 
   return (
-    <ExpandableSheet onDismiss={onClose} autoFocus>
-      {/* 타이틀 */}
-      <div className="px-5 pb-3 shrink-0">
-        <h3 className="text-[16px] font-semibold text-[#3a3a37] leading-[1.5]">
-          주소 검색
-        </h3>
-        <p className="text-[12px] text-[#90908e] leading-[1.5] mt-0.5">
-          지번, 도로명, 건물명으로 검색해주세요
-        </p>
-      </div>
+    <ExpandableSheet onDismiss={onClose} autoFocus title="주소 검색" showClose>
 
       {/* 검색 필드 */}
       <div className="px-4 pb-3 shrink-0">
@@ -75,25 +66,49 @@ export default function AddressSearchSheet({ onSelect, onClose }) {
       {/* 결과 리스트 */}
       <div className="px-4 pb-8">
         {!hasQuery ? (
-          <div className="flex flex-col items-center justify-center py-10">
-            <span className="text-[13px] text-[#ababa9]">도로명, 지번, 건물명으로 검색해보세요</span>
-          </div>
+          selectedAddress ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="px-4 py-3.5 rounded-[12px] bg-[#f0faf5] flex items-center">
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <span className="text-[14px] font-semibold text-[#16cc83] leading-[1.5]">{selectedAddress}</span>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0 ml-3">
+                  <path d="M4.5 10.5L8 14L15.5 6.5" stroke="#16cc83" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <p className="text-[12px] text-[#ababa9] text-center pt-4">변경하려면 주소를 검색해주세요</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10">
+              <span className="text-[13px] text-[#ababa9]">도로명, 지번, 건물명으로 검색해보세요</span>
+            </div>
+          )
         ) : filtered.length > 0 ? (
           <div className="flex flex-col gap-1.5">
-            {filtered.map((addr, i) => (
-              <button
-                key={i}
-                onClick={() => onSelect?.(addr.road)}
-                className="w-full px-4 py-3.5 rounded-[12px] flex flex-col items-start text-left active:bg-[#f4f4f4] transition-colors"
-              >
-                <span className="text-[14px] font-semibold text-[#3a3a37] leading-[1.5]">
-                  {addr.road}
-                </span>
-                <span className="text-[12px] text-[#90908e] leading-[1.5]">
-                  지번) {addr.jibun}
-                </span>
-              </button>
-            ))}
+            {filtered.map((addr, i) => {
+              const isSelected = selectedAddress === addr.road;
+              return (
+                <button
+                  key={i}
+                  onClick={() => onSelect?.(addr.road)}
+                  className={`w-full px-4 py-3.5 rounded-[12px] flex items-center text-left transition-colors ${isSelected ? 'bg-[#f0faf5]' : 'active:bg-[#f4f4f4]'}`}
+                >
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <span className={`text-[14px] font-semibold leading-[1.5] ${isSelected ? 'text-[#16cc83]' : 'text-[#3a3a37]'}`}>
+                      {addr.road}
+                    </span>
+                    <span className="text-[12px] text-[#90908e] leading-[1.5]">
+                      지번) {addr.jibun}
+                    </span>
+                  </div>
+                  {isSelected && (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0 ml-3">
+                      <path d="M4.5 10.5L8 14L15.5 6.5" stroke="#16cc83" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-10 gap-1">

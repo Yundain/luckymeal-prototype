@@ -14,7 +14,7 @@ const RUBBER = 0.3;          // 위로 드래그 시 rubber-band 계수
 const MAX_VH = 70;           // 최대 높이
 const DISMISS_RATIO = 0.4;   // 시트 높이 40% 이상 내리면 dismiss
 
-export default function ModalSheet({ children, onDismiss }) {
+export default function ModalSheet({ children, onDismiss, title, showClose = false }) {
   const backdropRef = useRef(null);
   const sheetRef = useRef(null);
   const dragRef = useRef({ active: false, startY: 0, lastY: 0, lastT: 0, vy: 0 });
@@ -224,14 +224,33 @@ export default function ModalSheet({ children, onDismiss }) {
       >
         {/* 핸들 바: 36×4, 터치 영역 44px+ */}
         <div
-          className="flex justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none"
-          style={{ padding: '12px 0', minHeight: '28px' }}
+          className="shrink-0 cursor-grab active:cursor-grabbing touch-none"
           onPointerDown={onHandlePointerDown}
           role="slider"
           aria-label="시트 드래그 핸들"
           tabIndex={-1}
         >
-          <div className="w-[36px] h-[4px] bg-[#C4C4C4] rounded-[2px]" />
+          <div className="flex justify-center" style={{ padding: '12px 0 0' }}>
+            <div className="w-[36px] h-[4px] bg-[#C4C4C4] rounded-[2px]" />
+          </div>
+
+          {title && (
+            <div className="flex items-center px-5 pt-3 pb-3" style={{ minHeight: '44px' }}>
+              <h3 className="flex-1 text-[16px] font-semibold text-[#3a3a37] leading-[1.5]">{title}</h3>
+              {showClose && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); dismiss(); }}
+                  className="shrink-0 w-[32px] h-[32px] flex items-center justify-center rounded-full bg-[#f0f0ee] active:bg-[#e3e3df] transition-colors"
+                  aria-label="닫기"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M1 1L13 13M13 1L1 13" stroke="#90908e" strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+          {!title && <div style={{ paddingBottom: '12px' }} />}
         </div>
 
         {/*

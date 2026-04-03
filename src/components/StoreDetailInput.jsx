@@ -8,6 +8,7 @@ const CASE_PRESETS = {
 };
 
 export default function StoreDetailInput({ store, onBack, onNext, onAddressChange, onClose }) {
+  const isSearched = store && !store.directInput;
   const [storeName, setStoreName] = useState(store?.name || '');
   const address = store?.address || '';
   const [detailAddress, setDetailAddress] = useState(store?.detailAddress || '');
@@ -74,9 +75,14 @@ export default function StoreDetailInput({ store, onBack, onNext, onAddressChang
           <input
             type="text"
             value={storeName}
-            onChange={(e) => setStoreName(e.target.value)}
+            onChange={(e) => !isSearched && setStoreName(e.target.value)}
+            readOnly={isSearched}
             placeholder="예: 브래댄코 상왕십리점"
-            className="w-full h-[52px] px-4 rounded-[18px] border border-[#c6c6c4] bg-white text-[16px] text-[#3a3a37] leading-[1.5] placeholder:text-[#ababa9] outline-none focus:border-[#16cc83] transition-colors"
+            className={`w-full h-[52px] px-4 rounded-[18px] border text-[16px] leading-[1.5] placeholder:text-[#ababa9] outline-none transition-colors ${
+              isSearched
+                ? 'border-[#e3e3df] bg-[#f8f8f6] text-[#90908e]'
+                : 'border-[#c6c6c4] bg-white text-[#3a3a37] focus:border-[#16cc83]'
+            }`}
           />
         </div>
 
@@ -85,11 +91,16 @@ export default function StoreDetailInput({ store, onBack, onNext, onAddressChang
           <label className="text-[14px] font-semibold text-[#545453] leading-[1.5] px-1">주소</label>
           <button
             data-annotate="detail-address-btn"
-            onClick={() => setShowAddressSheet(true)}
-            className="w-full h-[52px] px-4 rounded-[18px] border border-[#c6c6c4] bg-white flex items-center text-left"
+            onClick={() => !isSearched && setShowAddressSheet(true)}
+            disabled={isSearched}
+            className={`w-full h-[52px] px-4 rounded-[18px] border flex items-center text-left ${
+              isSearched
+                ? 'border-[#e3e3df] bg-[#f8f8f6]'
+                : 'border-[#c6c6c4] bg-white'
+            }`}
           >
             {address ? (
-              <span className="text-[16px] text-[#3a3a37] leading-[1.5]">{address}</span>
+              <span className={`text-[16px] leading-[1.5] ${isSearched ? 'text-[#90908e]' : 'text-[#3a3a37]'}`}>{address}</span>
             ) : (
               <span className="text-[16px] text-[#ababa9] leading-[1.5]">주소를 검색해주세요</span>
             )}
@@ -126,6 +137,7 @@ export default function StoreDetailInput({ store, onBack, onNext, onAddressChang
       {/* 주소 검색 바텀시트 */}
       {showAddressSheet && (
         <AddressSearchSheet
+          selectedAddress={address}
           onSelect={(addr) => {
             onAddressChange?.(addr);
             setShowAddressSheet(false);

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import ExpandableSheet from './ExpandableSheet';
+import SearchSelectSheet from './SearchSelectSheet';
 
 const MAX_PHOTOS = 5;
 
@@ -95,16 +95,54 @@ const CASE_PRESETS = {
 
 // 레퍼럴 검색용 가게 목데이터 (StoreSearch.jsx ALL_STORES와 동일)
 const REFERRAL_STORES = [
-  { name: '브래댄코 상왕십리점', address: '서울 마포구 월드컵북로 21' },
+  // 베이커리
+  { name: '브래댄코 상왕십리점', address: '서울 성동구 왕십리로 115' },
   { name: '브래댄코 본점', address: '서울 마포구 성미산로 11' },
   { name: '브래댄코 서울역점', address: '서울 용산구 한강대로 405' },
   { name: '브래댄코 강남점', address: '서울 강남구 테헤란로 123' },
   { name: '브래댄코 홍대점', address: '서울 마포구 양화로 12' },
   { name: '파리바게뜨 망원점', address: '서울 마포구 망원로 55' },
   { name: '뚜레쥬르 합정점', address: '서울 마포구 양화로 12' },
-  { name: '성심당 대전본점', address: '대전 중구 대종로 480번길 15' },
+  { name: '행복한빵집 홍대점', address: '서울 마포구 어울마당로 48' },
+  { name: '밀도 안국점', address: '서울 종로구 북촌로 43' },
+  { name: '카페어니언 성수점', address: '서울 성동구 아차산로9길 8' },
+  { name: '브레드숍 성수점', address: '서울 성동구 서울숲2길 44' },
+  { name: '브릭오븐 베이커리', address: '서울 종로구 삼청로 45' },
+  { name: '브레디포스트 망원점', address: '서울 마포구 망원로 77' },
+  { name: '브레드랩 연남점', address: '서울 마포구 연남로 35' },
+  { name: '브라운브레드', address: '서울 서초구 방배로 112' },
+  { name: '브레드피플', address: '서울 송파구 백제고분로 380' },
+  { name: '브리오슈도레 한남점', address: '서울 용산구 한남대로 42' },
+  { name: '브레첼하우스 이태원점', address: '서울 용산구 이태원로 180' },
+  { name: '브레드온더테이블', address: '서울 마포구 와우산로 94' },
+  { name: '브이베이커리 건대점', address: '서울 광진구 아차산로 262' },
+  { name: '브레드앤버터 신촌점', address: '서울 서대문구 연세로 36' },
+  { name: '브릿지베이커리 노원점', address: '서울 노원구 동일로 1414' },
+  { name: '브레드팩토리 역삼점', address: '서울 강남구 역삼로 180' },
+  { name: '브로트 상수점', address: '서울 마포구 독막로 88' },
+  { name: '브레드스미스 문래점', address: '서울 영등포구 도림로 430' },
+  // 디저트
   { name: '일타르타르트 마곡점', address: '서울 강서구 마곡중앙로 59' },
-  { name: '베이커리 한강점', address: '서울 용산구 이태원로 200' },
+  { name: '마망갸또 상수점', address: '서울 마포구 독막로 88' },
+  { name: '망원동크로와상', address: '서울 마포구 망원로 42' },
+  { name: '르뱅쿠키 강남점', address: '서울 강남구 테헤란로 152' },
+  { name: '오월의종 성수점', address: '서울 성동구 서울숲4길 18' },
+  { name: '도넛팩토리 연남점', address: '서울 마포구 연남로 35' },
+  // 샐러드·건강식
+  { name: '그린샐러드 합정점', address: '서울 마포구 양화로 160' },
+  { name: '샐러디 역삼점', address: '서울 강남구 역삼로 180' },
+  { name: '플랜트카페 이태원점', address: '서울 용산구 이태원로 200' },
+  // 한식·반찬
+  { name: '성심당 대전본점', address: '대전 중구 대종로 480번길 15' },
+  { name: '상수동반찬가게', address: '서울 마포구 독막로 112' },
+  { name: '은평한우 불광점', address: '서울 은평구 불광로 120' },
+  { name: '합정도시락 합정점', address: '서울 마포구 양화로 80' },
+  // 기타
+  { name: '연남동파스타', address: '서울 마포구 연남로 50' },
+  { name: '잠실빵공장 잠실점', address: '서울 송파구 올림픽로 202' },
+  { name: '여의도베이커리 본점', address: '서울 영등포구 여의대방로 45' },
+  { name: '노원빵집 공릉점', address: '서울 노원구 동일로 1414' },
+  { name: '파리바게뜨 구로점', address: '서울 구로구 디지털로 300' },
 ];
 
 // 메뉴 아이템 → 카테고리 역매핑용
@@ -142,11 +180,8 @@ export default function StoreInfo({ onNext, onBack, onClose, selectedMenus, init
   );
   const [selectedTraits, setSelectedTraits] = useState(() => new Set(initialData?.selectedTraits || []));
   const [description, setDescription] = useState(initialData?.description || '');
-  const [referralQuery, setReferralQuery] = useState('');
   const [referralStore, setReferralStore] = useState(initialData?.referralStore || null);
-  const [showReferralSheet, setShowReferralSheet] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const referralInputRef = useRef(null);
   const fileRef = useRef(null);
 
   // App에 변경 전파
@@ -165,7 +200,6 @@ export default function StoreInfo({ onNext, onBack, onClose, selectedMenus, init
         setSelectedTraits(preset.selectedTraits);
         setDescription(preset.description);
         setReferralStore(preset.referralStore || null);
-        setReferralQuery('');
       }
     };
     window.addEventListener('message', handler);
@@ -432,135 +466,28 @@ export default function StoreInfo({ onNext, onBack, onClose, selectedMenus, init
         </div>
 
         <div data-annotate="info-referral" className="px-5 pb-8">
-          {referralStore ? (
-            /* 선택 완료 상태 */
-            <div className="flex items-center gap-3 h-[52px] px-4 rounded-[14px] border border-[#16cc83] bg-[#f0faf5]">
-              <div className="flex-1 min-w-0">
-                <span className="text-[14px] font-semibold text-[#3a3a37] leading-[1.5]">
-                  {referralStore.name}
+          <SearchSelectSheet
+            title="추천한 사장님"
+            placeholder="가게 이름을 입력해주세요"
+            triggerPlaceholder="가게 이름 검색"
+            emptyMessage="추천해준 가게 이름을 검색해보세요"
+            noResultMessage="검색 결과가 없습니다"
+            items={REFERRAL_STORES}
+            filterFn={(store, q) => store.name.includes(q)}
+            getItemKey={(store) => store.name}
+            getItemLabel={(store) => store.name}
+            value={referralStore}
+            onChange={setReferralStore}
+            renderItem={(store, { isSelected }) => (
+              <div className="flex flex-col">
+                <span className={`text-[14px] font-semibold leading-[1.5] ${isSelected ? 'text-[#16cc83]' : 'text-[#3a3a37]'}`}>
+                  {store.name}
                 </span>
+                <span className="text-[12px] text-[#90908e] leading-[1.5]">{store.address}</span>
               </div>
-              <button
-                onClick={() => {
-                  setReferralStore(null);
-                  setReferralQuery('');
-                }}
-                className="shrink-0 w-[20px] h-[20px] flex items-center justify-center"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="8" fill="#c6c6c4"/>
-                  <path d="M7 7L13 13M13 7L7 13" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
-          ) : (
-            /* 트리거 버튼 — 탭하면 바텀시트 오픈 */
-            <button
-              onClick={() => {
-                setShowReferralSheet(true);
-                setTimeout(() => referralInputRef.current?.focus(), 300);
-              }}
-              className="w-full flex items-center gap-3 h-[48px] px-4 rounded-[14px] border border-[#e3e3df] bg-white active:bg-[#f8f8f6] transition-colors"
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-                <circle cx="8" cy="8" r="5.5" stroke="#ababa9" strokeWidth="1.5"/>
-                <path d="M12.5 12.5L16 16" stroke="#ababa9" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              <span className="text-[14px] text-[#ababa9] leading-[1.5]">가게 이름 검색</span>
-            </button>
-          )}
+            )}
+          />
         </div>
-
-        {/* 추천인 검색 바텀시트 */}
-        {showReferralSheet && (
-          <ExpandableSheet
-            onDismiss={() => {
-              setShowReferralSheet(false);
-              setReferralQuery('');
-            }}
-            autoFocus
-          >
-            {/* 타이틀 */}
-            <div className="px-5 pb-3 shrink-0">
-              <h3 className="text-[16px] font-semibold text-[#3a3a37] leading-[1.5]">
-                추천인 가게 검색
-              </h3>
-            </div>
-
-            {/* 검색 필드 */}
-            <div className="px-4 pb-3 shrink-0">
-              <div className="flex items-center gap-3 h-[48px] px-4 rounded-[14px] border border-[#e3e3df] bg-[#f8f8f6] focus-within:border-[#16cc83] transition-colors">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-                  <circle cx="8" cy="8" r="5.5" stroke="#ababa9" strokeWidth="1.5"/>
-                  <path d="M12.5 12.5L16 16" stroke="#ababa9" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                <input
-                  ref={referralInputRef}
-                  type="text"
-                  value={referralQuery}
-                  onChange={(e) => setReferralQuery(e.target.value)}
-                  placeholder="가게 이름을 입력해주세요"
-                  className="flex-1 text-[14px] text-[#3a3a37] leading-[1.5] outline-none bg-transparent placeholder:text-[#ababa9]"
-                />
-                {referralQuery && (
-                  <button
-                    onClick={() => {
-                      setReferralQuery('');
-                      referralInputRef.current?.focus();
-                    }}
-                    className="shrink-0 w-[20px] h-[20px] flex items-center justify-center"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" fill="#d4d4d4"/>
-                      <path d="M7 7L13 13M13 7L7 13" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* 검색 결과 리스트 */}
-            <div className="px-4 pb-8">
-              {referralQuery.trim().length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <span className="text-[13px] text-[#ababa9]">추천해준 가게 이름을 검색해보세요</span>
-                </div>
-              ) : (() => {
-                const results = REFERRAL_STORES.filter((s) => s.name.includes(referralQuery.trim())).slice(0, 10);
-                if (results.length === 0) {
-                  return (
-                    <div className="flex flex-col items-center justify-center py-10 gap-1">
-                      <span className="text-[13px] text-[#90908e]">검색 결과가 없습니다</span>
-                      <span className="text-[12px] text-[#ababa9]">가게 이름을 다시 확인해주세요</span>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="flex flex-col gap-1.5">
-                    {results.map((store) => (
-                      <button
-                        key={store.name}
-                        onClick={() => {
-                          setReferralStore(store);
-                          setReferralQuery('');
-                          setShowReferralSheet(false);
-                        }}
-                        className="w-full px-4 py-3.5 rounded-[12px] flex flex-col items-start text-left active:bg-[#f4f4f4] transition-colors"
-                      >
-                        <span className="text-[14px] font-semibold text-[#3a3a37] leading-[1.5]">
-                          {store.name}
-                        </span>
-                        <span className="text-[12px] text-[#90908e] leading-[1.5]">
-                          {store.address}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </ExpandableSheet>
-        )}
 
         {/* 스크롤 하단 여백 (CTA 겹침 방지) */}
         <div className="h-[100px]" />
