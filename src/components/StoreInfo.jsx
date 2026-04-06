@@ -334,7 +334,7 @@ export default function StoreInfo({ onNext, onBack, onClose, selectedMenus, init
             <button
               data-annotate="info-photo-example"
               className="h-[28px] px-2.5 rounded-[8px] border border-[#e3e3df] bg-white text-[12px] font-semibold text-[#6d6d6b] leading-[1.5]"
-              onClick={() => {/* 예시 노션 페이지 */}}
+              onClick={() => window.open('https://www.notion.so/33affa4133878006851be028a1bf9d19?pvs=24', '_blank')}
             >
               예시
             </button>

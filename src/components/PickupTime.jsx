@@ -409,7 +409,7 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
           <p className="text-[12px] text-[#ff4444] text-center mb-2">최소 1개 요일을 선택해주세요</p>
         )}
         <div className="flex items-center gap-3">
-          <button data-annotate="pickup-method-btn" className="flex-1 h-[52px] border border-[#e3e3df] rounded-[18px] flex items-center justify-center gap-1">
+          <button data-annotate="pickup-method-btn" onClick={() => window.open('https://www.notion.so/33affa413387806c9762c63801b308b3?pvs=24', '_blank')} className="flex-1 h-[52px] border border-[#e3e3df] rounded-[18px] flex items-center justify-center gap-1">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="#6d6d6b" strokeWidth="1.5"/>
               <path d="M12 8v4M12 16h.01" stroke="#6d6d6b" strokeWidth="1.5" strokeLinecap="round"/>

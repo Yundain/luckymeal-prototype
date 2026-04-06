@@ -771,7 +771,7 @@
         specs: [
           { area:'요일별 설정 (전체)', sel:'pickup-daylist', cat:'state', text:'기본: ⑦에서 선택한 요일 ON (디폴트 월~토, 주 6일), 동일 시간 18:00~19:00, 1슬롯.' },
           { area:'요일별 설정 (전체)', cat:'todo', text:'⚠️ 추가 필요: "매일 판매하지 않아도 돼요" 인포박스 (최상단).' },
-          { area:'하단 CTA', sel:'pickup-method-btn', cat:'state', text:'<strong>"픽업 방식" 버튼</strong> (아웃라인) → 노션 웹뷰로 픽업 안내 페이지 오픈.' },
+          { area:'하단 CTA', sel:'pickup-method-btn', cat:'state', text:'<strong>"픽업 방식" 버튼</strong> (아웃라인) → 노션 웹뷰로 픽업 안내 페이지 오픈. <br><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;"><a href="https://www.notion.so/33affa413387806c9762c63801b308b3?pvs=24" target="_blank" style="color:#2563eb;text-decoration:underline;font-size:12px;">🔗 노션 링크</a><button onclick="navigator.clipboard.writeText(\'https://www.notion.so/33affa413387806c9762c63801b308b3?pvs=24\');this.textContent=\'복사됨!\';setTimeout(()=>this.textContent=\'복사\',1500)" style="font-size:11px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;cursor:pointer;">복사</button></span>' },
           { area:'시간 슬롯', sel:'pickup-slot', cat:'state', text:'우측 chevron(>) 표시로 탭 가능 어포던스. ON 시 탭 → 타임피커. <strong>OFF 시 탭 → 해당 요일 ON 전환.</strong>' },
           { area:'시간 슬롯', cat:'state', text:'<strong>요일 비활성화 시:</strong> "없음 ~ 없음" 1줄만 표시 (2슬롯이어도 숨김). 에러 즉시 제거. 재활성화 시 이전 입력값 복원 + 에러 재검증.' },
           { area:'시간 슬롯', cat:'state', text:'<strong>슬롯 삭제 시:</strong> 해당 요일 에러 즉시 제거.' },
@@ -823,7 +823,7 @@
             { label:'사진 있음', status:'done', caseId:'info-with-photo' },
             { label:'사진 5장 (최대)', status:'done', caseId:'info-max-photos' },
           ], cat:'state', text:'최대 5장. 타이틀 옆에 N/5 카운트 표시. 업로드 시 말풍선 숨김.' },
-          { area:'사진', cat:'state', text:'<strong>"예시" 버튼</strong> (우측 상단) → 노션 웹뷰로 사진 가이드 페이지 오픈.' },
+          { area:'사진', sel:'info-photo-example', cat:'state', text:'<strong>"예시" 버튼</strong> (우측 상단) → 노션 웹뷰로 사진 가이드 페이지 오픈. <br><span style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;"><a href="https://www.notion.so/33affa4133878006851be028a1bf9d19?pvs=24" target="_blank" style="color:#2563eb;text-decoration:underline;font-size:12px;">🔗 노션 링크</a><button onclick="navigator.clipboard.writeText(\'https://www.notion.so/33affa4133878006851be028a1bf9d19?pvs=24\');this.textContent=\'복사됨!\';setTimeout(()=>this.textContent=\'복사\',1500)" style="font-size:11px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;background:#f9fafb;cursor:pointer;">복사</button></span>' },
           { area:'가게 속성 (토글)', sel:'info-toggles', cases:[
             { label:'전체 OFF', status:'done', caseId:'info-empty' },
             { label:'전체 ON', status:'done', caseId:'info-all-toggles' },
