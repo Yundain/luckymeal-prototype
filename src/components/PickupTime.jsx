@@ -241,7 +241,7 @@ export default function PickupTime({ selectedDays, onNext, onBack, onClose, onSt
     >
       {/* 상단 네비 */}
       <div className="flex items-center justify-between h-[48px] px-1 shrink-0">
-        <button onClick={onBack} className="w-[42px] h-[42px] flex items-center justify-center">
+        <button onClick={() => { if (!hasAnyActive) { onDaySettingsChange?.(null); } onBack(); }} className="w-[42px] h-[42px] flex items-center justify-center">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12.5 15L7.5 10L12.5 5" stroke="#1d1d1d" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
